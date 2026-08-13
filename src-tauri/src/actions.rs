@@ -2,6 +2,9 @@
 use crate::apple_intelligence;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error, VadPolicy};
+use crate::bangla_transcription::{
+    transcribe_bangla, CancellationContext, CloudTranscriptionError, RecordedAudio,
+};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
@@ -34,6 +37,11 @@ const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
 struct RecordingErrorEvent {
     error_type: String,
     detail: Option<String>,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct BanglaTranscriptionErrorEvent {
+    error_type: String,
 }
 
 /// Drop guard that notifies the [`TranscriptionCoordinator`] when the
@@ -119,13 +127,13 @@ where
     }
 }
 
-/// Checkpoint-one Bangla route: exercise the complete shared recording
-/// lifecycle, but deliberately do not load a local model, transcribe, save,
-/// or paste. Checkpoint two replaces the discard step with cloud STT.
-fn start_bangla_recording_skeleton(app: &AppHandle, binding_id: &str) {
+/// Bangla capture shares the ordinary recorder/VAD lifecycle but intentionally
+/// bypasses local model loading and streaming. Batch cloud STT begins only
+/// after this recording is stopped.
+fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
     let start_time = Instant::now();
     debug!(
-        "BanglaRomanization skeleton start called for binding: {}",
+        "Bangla batch transcription start called for binding: {}",
         binding_id
     );
 
@@ -213,24 +221,23 @@ fn start_bangla_recording_skeleton(app: &AppHandle, binding_id: &str) {
     }
 
     debug!(
-        "BanglaRomanization skeleton start completed in {:?}",
+        "Bangla batch transcription start completed in {:?}",
         start_time.elapsed()
     );
 }
 
-fn stop_bangla_recording_skeleton(app: &AppHandle, binding_id: &str) {
+fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
     shortcut::unregister_cancel_shortcut(app);
 
     debug!(
-        "BanglaRomanization skeleton stop called for binding: {}",
+        "Bangla batch transcription stop called for binding: {}",
         binding_id
     );
 
     let ah = app.clone();
     let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
 
-    // Keep the established recorder-close feedback. This is not a cloud
-    // progress state yet; Checkpoint two will hold it while an STT request runs.
+    // Keep the normal working state visible for the batch cloud request.
     change_tray_icon(app, TrayIconState::Transcribing);
     show_transcribing_overlay(app);
     rm.remove_mute();
@@ -242,29 +249,95 @@ fn stop_bangla_recording_skeleton(app: &AppHandle, binding_id: &str) {
     tauri::async_runtime::spawn(async move {
         let _guard = FinishGuard(ah.clone());
 
-        match rm.stop_recording(&binding_id, cancel_generation) {
-            Some(samples) if rm.was_cancelled_since(cancel_generation) => {
-                debug!(
-                    "Bangla recording cancelled after capture close; discarding {} samples",
-                    samples.len()
-                );
-            }
-            Some(samples) => {
-                debug!(
-                    "Bangla recording skeleton captured {} samples; discarding without inference",
-                    samples.len()
-                );
-            }
-            None => {
-                debug!("Bangla recording skeleton ended without samples");
-            }
+        let Some(samples) = rm.stop_recording(&binding_id, cancel_generation) else {
+            debug!("Bangla recording ended without samples");
+            utils::hide_recording_overlay(&ah);
+            change_tray_icon(&ah, TrayIconState::Idle);
+            return;
+        };
+
+        if rm.was_cancelled_since(cancel_generation) {
+            debug!("Bangla recording was cancelled after capture closed");
+            utils::hide_recording_overlay(&ah);
+            change_tray_icon(&ah, TrayIconState::Idle);
+            return;
         }
 
-        // No history, WAV persistence, local transcription, cloud request, or
-        // paste occurs in this checkpoint.
-        utils::hide_recording_overlay(&ah);
-        change_tray_icon(&ah, TrayIconState::Idle);
+        let audio = match RecordedAudio::from_recorder(samples) {
+            Ok(audio) => audio,
+            Err(error) => {
+                emit_bangla_transcription_error(&ah, error);
+                utils::hide_recording_overlay(&ah);
+                change_tray_icon(&ah, TrayIconState::Idle);
+                return;
+            }
+        };
+        let settings = get_settings(&ah);
+        let rm_for_cancel = Arc::clone(&rm);
+        let cancellation =
+            CancellationContext::new(move || rm_for_cancel.was_cancelled_since(cancel_generation));
+
+        // `complete_unless_cancelled` drops the HTTP future at cancellation,
+        // aborting the upload/request; the generation checks below also block a
+        // late response from ever reaching the paste layer.
+        let Some(result) =
+            complete_unless_cancelled(transcribe_bangla(audio, &settings, cancellation), || {
+                rm.was_cancelled_since(cancel_generation)
+            })
+            .await
+        else {
+            debug!("Bangla cloud request cancelled");
+            utils::hide_recording_overlay(&ah);
+            change_tray_icon(&ah, TrayIconState::Idle);
+            return;
+        };
+
+        match result {
+            Ok(transcript) if !rm.was_cancelled_since(cancel_generation) => {
+                // Checkpoint 2 deliberately pastes raw Bangla only to verify
+                // STT. Checkpoint 3 replaces this with required Romanization.
+                let ah_for_paste = ah.clone();
+                let rm_for_paste = Arc::clone(&rm);
+                if let Err(error) = ah.run_on_main_thread(move || {
+                    if rm_for_paste.was_cancelled_since(cancel_generation) {
+                        return;
+                    }
+                    if let Err(error) = utils::paste(transcript.text, ah_for_paste.clone()) {
+                        error!("Failed to paste Bangla transcription: {error}");
+                        let _ = ah_for_paste.emit("paste-error", ());
+                    }
+                    utils::hide_recording_overlay(&ah_for_paste);
+                    change_tray_icon(&ah_for_paste, TrayIconState::Idle);
+                }) {
+                    error!("Failed to schedule Bangla paste: {error}");
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
+                }
+            }
+            Ok(_) | Err(CloudTranscriptionError::Cancelled) => {
+                debug!("Bangla cloud result suppressed after cancellation");
+                utils::hide_recording_overlay(&ah);
+                change_tray_icon(&ah, TrayIconState::Idle);
+            }
+            Err(error) => {
+                emit_bangla_transcription_error(&ah, error);
+                utils::hide_recording_overlay(&ah);
+                change_tray_icon(&ah, TrayIconState::Idle);
+            }
+        }
     });
+}
+
+fn emit_bangla_transcription_error(app: &AppHandle, error: CloudTranscriptionError) {
+    // Error variants are deliberately content-free. Do not add provider body,
+    // API-key, audio, transcript, or endpoint details to this event or logs.
+    warn!("Bangla cloud transcription failed: {}", error.event_code());
+    let _ = app.emit(
+        "bangla-transcription-error",
+        BanglaTranscriptionErrorEvent {
+            error_type: error.event_code().to_string(),
+        },
+    );
 }
 
 fn should_use_streaming_overlay(style: OverlayStyle, is_streaming: bool) -> bool {
@@ -621,7 +694,7 @@ pub(crate) async fn process_transcription_output(
 impl ShortcutAction for TranscribeAction {
     fn start(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
         if !self.mode.uses_local_inference() {
-            start_bangla_recording_skeleton(app, binding_id);
+            start_bangla_recording(app, binding_id);
             return;
         }
 
@@ -775,7 +848,7 @@ impl ShortcutAction for TranscribeAction {
 
     fn stop(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
         if !self.mode.uses_local_inference() {
-            stop_bangla_recording_skeleton(app, binding_id);
+            stop_bangla_recording(app, binding_id);
             return;
         }
 

@@ -432,6 +432,16 @@ pub struct AppSettings {
     pub post_process_prompts: Vec<LLMPrompt>,
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
+    /// Cloud STT configuration for the Bangla shortcut. It is intentionally
+    /// separate from local model and English post-processing settings.
+    #[serde(default = "default_bangla_stt_provider_id")]
+    pub bangla_stt_provider_id: String,
+    #[serde(default = "default_bangla_stt_endpoint")]
+    pub bangla_stt_endpoint: String,
+    #[serde(default = "default_bangla_stt_api_keys")]
+    pub bangla_stt_api_keys: SecretMap,
+    #[serde(default = "default_bangla_stt_models")]
+    pub bangla_stt_models: HashMap<String, String>,
     #[serde(default)]
     pub mute_while_recording: bool,
     #[serde(default)]
@@ -597,6 +607,22 @@ fn default_theme() -> Theme {
 
 fn default_post_process_enabled() -> bool {
     false
+}
+
+fn default_bangla_stt_provider_id() -> String {
+    "deepgram".to_string()
+}
+
+fn default_bangla_stt_endpoint() -> String {
+    "https://api.deepgram.com/v1/listen".to_string()
+}
+
+fn default_bangla_stt_api_keys() -> SecretMap {
+    SecretMap(HashMap::from([("deepgram".to_string(), String::new())]))
+}
+
+fn default_bangla_stt_models() -> HashMap<String, String> {
+    HashMap::from([("deepgram".to_string(), "nova-3".to_string())])
 }
 
 fn default_app_language() -> String {
@@ -802,6 +828,25 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
     changed
 }
 
+/// Add Cloud STT keys introduced after an existing settings store was written,
+/// without overwriting a user-selected endpoint, model, or credential.
+fn ensure_bangla_stt_defaults(settings: &mut AppSettings) -> bool {
+    let mut changed = false;
+    if !settings.bangla_stt_api_keys.contains_key("deepgram") {
+        settings
+            .bangla_stt_api_keys
+            .insert("deepgram".to_string(), String::new());
+        changed = true;
+    }
+    if !settings.bangla_stt_models.contains_key("deepgram") {
+        settings
+            .bangla_stt_models
+            .insert("deepgram".to_string(), "nova-3".to_string());
+        changed = true;
+    }
+    changed
+}
+
 pub const SETTINGS_STORE_PATH: &str = "settings_store.json";
 
 pub fn get_default_settings() -> AppSettings {
@@ -915,6 +960,10 @@ pub fn get_default_settings() -> AppSettings {
         post_process_models: default_post_process_models(),
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: None,
+        bangla_stt_provider_id: default_bangla_stt_provider_id(),
+        bangla_stt_endpoint: default_bangla_stt_endpoint(),
+        bangla_stt_api_keys: default_bangla_stt_api_keys(),
+        bangla_stt_models: default_bangla_stt_models(),
         mute_while_recording: false,
         append_trailing_space: false,
         app_language: default_app_language(),
@@ -1011,7 +1060,7 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
         default_settings
     };
 
-    if ensure_post_process_defaults(&mut settings) {
+    if ensure_post_process_defaults(&mut settings) | ensure_bangla_stt_defaults(&mut settings) {
         store.set("settings", serde_json::to_value(&settings).unwrap());
     }
 
@@ -1188,6 +1237,18 @@ mod tests {
         assert_eq!(binding.default_binding, "option+shift+b");
         #[cfg(any(target_os = "windows", target_os = "linux"))]
         assert_eq!(binding.default_binding, "ctrl+shift+b");
+    }
+
+    #[test]
+    fn default_settings_keep_bangla_cloud_stt_separate_from_local_model_settings() {
+        let settings = get_default_settings();
+        assert_eq!(settings.bangla_stt_provider_id, "deepgram");
+        assert_eq!(
+            settings.bangla_stt_endpoint,
+            "https://api.deepgram.com/v1/listen"
+        );
+        assert_eq!(settings.bangla_stt_models["deepgram"], "nova-3");
+        assert!(settings.bangla_stt_api_keys["deepgram"].is_empty());
     }
 
     #[test]

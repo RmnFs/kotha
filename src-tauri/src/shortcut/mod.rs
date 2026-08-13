@@ -1005,6 +1005,70 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
     Ok(())
 }
 
+/// Select the provider used only by the Bangla cloud-STT path. Adding a new
+/// value here also requires registering its adapter in `bangla_transcription`;
+/// this command never changes local-model or English LLM configuration.
+#[tauri::command]
+#[specta::specta]
+pub fn change_bangla_stt_provider_setting(
+    app: AppHandle,
+    provider_id: String,
+) -> Result<(), String> {
+    if provider_id != "deepgram" {
+        return Err("Unsupported Bangla transcription provider".to_string());
+    }
+    let mut settings = settings::get_settings(&app);
+    settings.bangla_stt_provider_id = provider_id;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Store a Deepgram-compatible endpoint. This supports Deepgram regional or
+/// dedicated deployments without hard-coding a provider URL in actions.rs.
+#[tauri::command]
+#[specta::specta]
+pub fn change_bangla_stt_endpoint_setting(app: AppHandle, endpoint: String) -> Result<(), String> {
+    let endpoint = endpoint.trim();
+    let parsed = reqwest::Url::parse(endpoint)
+        .map_err(|_| "Enter a valid Bangla transcription endpoint".to_string())?;
+    if !matches!(parsed.scheme(), "https" | "http") {
+        return Err("Bangla transcription endpoint must use HTTP or HTTPS".to_string());
+    }
+    let mut settings = settings::get_settings(&app);
+    settings.bangla_stt_endpoint = endpoint.to_string();
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Store a user-provided Bangla STT credential in the existing redacted
+/// settings map. It is not printed by AppSettings' Debug implementation.
+#[tauri::command]
+#[specta::specta]
+pub fn change_bangla_stt_api_key_setting(app: AppHandle, api_key: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings
+        .bangla_stt_api_keys
+        .insert(settings.bangla_stt_provider_id.clone(), api_key);
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_bangla_stt_model_setting(app: AppHandle, model: String) -> Result<(), String> {
+    let model = model.trim();
+    if model.is_empty() {
+        return Err("Bangla transcription model cannot be empty".to_string());
+    }
+    let mut settings = settings::get_settings(&app);
+    let provider_id = settings.bangla_stt_provider_id.clone();
+    settings
+        .bangla_stt_models
+        .insert(provider_id, model.to_string());
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn change_experimental_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {

@@ -125,6 +125,24 @@ function App() {
     };
   }, [t]);
 
+  // Cloud STT failures use stable error codes rather than raw provider errors:
+  // transport details can include private endpoint configuration or content.
+  useEffect(() => {
+    const unlisten = listen<{ error_type: string }>(
+      "bangla-transcription-error",
+      (event) => {
+        toast.error(t("bangla.errors.title"), {
+          description: t(`bangla.errors.${event.payload.error_type}`, {
+            defaultValue: t("bangla.errors.provider"),
+          }),
+        });
+      },
+    );
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
   // Listen for paste failures and show a toast.
   // The technical error detail is logged to handy.log on the Rust side
   // (see actions.rs `error!("Failed to paste transcription: ...")`),

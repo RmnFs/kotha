@@ -611,6 +611,45 @@
       }
     }
   },
+  "bangla": {
+    "sidebar": "Bangla",
+    "title": "Bangla Transcription",
+    "provider": {
+      "title": "Provider",
+      "description": "Cloud service for the Bangla shortcut.",
+      "name": "Deepgram"
+    },
+    "endpoint": {
+      "title": "Endpoint",
+      "description": "Deepgram-compatible batch transcription endpoint."
+    },
+    "model": { "title": "Model", "description": "Deepgram model identifier." },
+    "apiKey": {
+      "title": "Deepgram API Key",
+      "description": "Your personal Deepgram API key.",
+      "placeholder": "Enter your Deepgram API key"
+    },
+    "privacy": {
+      "title": "Cloud audio disclosure",
+      "description": "Bangla recordings are sent only after recording stops. Local English remains offline."
+    },
+    "errors": {
+      "title": "Bangla Transcription Failed",
+      "save": "Failed to save Bangla transcription settings.",
+      "missing_configuration": "Add a Deepgram API key and model in Bangla settings.",
+      "unsupported_provider": "The configured Bangla transcription provider is not available.",
+      "invalid_configuration": "Check the Bangla transcription endpoint configuration.",
+      "empty_audio": "No speech audio was captured.",
+      "audio_too_long": "The recording is too long for Bangla batch transcription.",
+      "offline": "Could not reach the Bangla transcription service. Check your connection.",
+      "timeout": "Bangla transcription timed out. Please try again.",
+      "authentication": "Deepgram rejected the API key.",
+      "rate_limited": "Deepgram is rate limiting requests. Please try again shortly.",
+      "provider": "The Bangla transcription service could not process this recording.",
+      "malformed_response": "The Bangla transcription service returned an unexpected response.",
+      "empty_transcript": "No Bangla speech was detected."
+    }
+  },
   "footer": {
     "checkingUpdates": "Sprawdzanie aktualizacji...",
     "updateAvailableShort": "Dostępna aktualizacja",
