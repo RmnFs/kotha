@@ -199,6 +199,10 @@
           "transcribe_with_post_process": {
             "name": "Phím tắt xử lý sau",
             "description": "Tùy chọn: Phím tắt chuyên dụng luôn áp dụng xử lý sau bằng AI cho bản chuyển đổi của bạn."
+          },
+          "transcribe_bangla_romanized": {
+            "name": "Phím tắt La-tinh hóa tiếng Bengal",
+            "description": "Phím tắt để ghi âm tiếng Bengal nhằm La-tinh hóa."
           }
         },
         "errors": {

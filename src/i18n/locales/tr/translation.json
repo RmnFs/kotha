@@ -199,6 +199,10 @@
           "transcribe_with_post_process": {
             "name": "Son İşlem Kısayolu",
             "description": "İsteğe bağlı: Transkripsiyonunuza her zaman yapay zekâ ile son işlem uygulayan özel bir kısayol tuşu."
+          },
+          "transcribe_bangla_romanized": {
+            "name": "Bengalce Romanlaştırma Kısayolu",
+            "description": "Romanlaştırma için Bengalce konuşmayı kaydetmeye yarayan klavye kısayolu."
           }
         },
         "errors": {

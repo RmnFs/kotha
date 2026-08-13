@@ -199,6 +199,10 @@
           "transcribe_with_post_process": {
             "name": "Nachbearbeitungs-Tastenkürzel",
             "description": "Optional: Ein dediziertes Tastenkürzel, das immer die KI-Nachbearbeitung auf deine Transkription anwendet."
+          },
+          "transcribe_bangla_romanized": {
+            "name": "Tastenkürzel für bengalische Romanisierung",
+            "description": "Tastenkürzel zum Aufnehmen bengalischer Sprache für die Romanisierung."
           }
         },
         "errors": {

@@ -199,6 +199,10 @@
           "transcribe_with_post_process": {
             "name": "后处理快捷键",
             "description": "可选：一个专用快捷键，始终对您的转录应用 AI 后处理。"
+          },
+          "transcribe_bangla_romanized": {
+            "name": "孟加拉语罗马化快捷键",
+            "description": "用于录制孟加拉语语音以进行罗马化的键盘快捷键。"
           }
         },
         "errors": {

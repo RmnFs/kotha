@@ -25,6 +25,7 @@ use crate::settings::{
     OverlayPosition, OverlayStyle, PasteMethod, ShortcutBinding, SoundTheme, Theme, TypingTool,
     APPLE_INTELLIGENCE_PROVIDER_ID,
 };
+use crate::transcription_mode::TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID;
 use crate::tray;
 
 // Note: Commands are accessed via shortcut::handy_keys:: in lib.rs
@@ -255,7 +256,7 @@ pub fn resume_all_shortcuts(app: &AppHandle) {
         if id == "cancel" {
             continue;
         }
-        if id == "transcribe_with_post_process" && !settings.post_process_enabled {
+        if id == TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID && !settings.post_process_enabled {
             continue;
         }
         if let Err(e) = register_shortcut(app, binding.clone()) {
@@ -447,7 +448,7 @@ fn register_all_shortcuts_for_implementation(
         }
 
         // Skip post-processing shortcut when the feature is disabled
-        if id == "transcribe_with_post_process" && !current_settings.post_process_enabled {
+        if id == TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID && !current_settings.post_process_enabled {
             continue;
         }
 
@@ -990,7 +991,7 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
     // Register or unregister the post-processing shortcut
     if let Some(binding) = settings
         .bindings
-        .get("transcribe_with_post_process")
+        .get(TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID)
         .cloned()
     {
         if enabled {

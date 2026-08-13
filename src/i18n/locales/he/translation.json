@@ -179,6 +179,10 @@
           "transcribe_with_post_process": {
             "name": "קיצור לעיבוד משלים",
             "description": "אופציונלי: קיצור מקשים ייעודי שתמיד מפעיל עיבוד AI על התמלול."
+          },
+          "transcribe_bangla_romanized": {
+            "name": "קיצור לרומניזציה של בנגלית",
+            "description": "קיצור מקשים להקלטת דיבור בנגלי לצורך רומניזציה."
           }
         },
         "errors": {

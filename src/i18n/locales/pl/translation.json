@@ -199,6 +199,10 @@
           "transcribe_with_post_process": {
             "name": "Skrót postprocessingu",
             "description": "Opcjonalnie: Dedykowany skrót klawiszowy, który zawsze stosuje postprocessing AI do transkrypcji."
+          },
+          "transcribe_bangla_romanized": {
+            "name": "Skrót romanizacji bengalskiego",
+            "description": "Skrót klawiaturowy do nagrywania mowy bengalskiej do romanizacji."
           }
         },
         "errors": {

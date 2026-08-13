@@ -122,6 +122,7 @@ pub fn tray_warning_active(app: &AppHandle) -> bool {
 mod imp {
     use super::*;
     use crate::settings::{self, KeyboardImplementation, ShortcutBinding};
+    use crate::transcription_mode::TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID;
     use log::{debug, error, info, warn};
     use std::process::Command;
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -512,7 +513,7 @@ mod imp {
                 if id == "cancel" && !state.cancel_requested.load(Ordering::SeqCst) {
                     continue;
                 }
-                if id == "transcribe_with_post_process" && !settings.post_process_enabled {
+                if id == TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID && !settings.post_process_enabled {
                     continue;
                 }
 

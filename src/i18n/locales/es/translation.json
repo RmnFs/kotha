@@ -199,6 +199,10 @@
           "transcribe_with_post_process": {
             "name": "Tecla de post procesamiento",
             "description": "Opcional: Una tecla de acceso rápido dedicada que siempre aplica post procesamiento con IA a tu transcripción."
+          },
+          "transcribe_bangla_romanized": {
+            "name": "Atajo para romanización bengalí",
+            "description": "El atajo de teclado para grabar voz bengalí para su romanización."
           }
         },
         "errors": {

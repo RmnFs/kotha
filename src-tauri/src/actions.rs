@@ -9,6 +9,10 @@ use crate::managers::transcription::StreamWorkKind;
 use crate::managers::transcription::TranscriptionManager;
 use crate::settings::{get_settings, AppSettings, OverlayStyle, APPLE_INTELLIGENCE_PROVIDER_ID};
 use crate::shortcut;
+use crate::transcription_mode::{
+    TranscriptionMode, TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID, TRANSCRIBE_BINDING_ID,
+    TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID,
+};
 use crate::tray::{change_tray_icon, TrayIconState};
 use crate::utils::{
     self, show_processing_overlay, show_recording_overlay, show_transcribing_overlay,
@@ -53,9 +57,10 @@ pub trait ShortcutAction: Send + Sync {
     fn stop(&self, app: &AppHandle, binding_id: &str, shortcut_str: &str);
 }
 
-// Transcribe Action
+// Transcription action. The binding-selected mode is fixed for the action's
+// lifetime, so its start and stop paths cannot disagree about the route.
 struct TranscribeAction {
-    post_process: bool,
+    mode: TranscriptionMode,
 }
 
 /// Field name for structured output JSON schema
@@ -112,6 +117,154 @@ where
             return Some(result);
         }
     }
+}
+
+/// Checkpoint-one Bangla route: exercise the complete shared recording
+/// lifecycle, but deliberately do not load a local model, transcribe, save,
+/// or paste. Checkpoint two replaces the discard step with cloud STT.
+fn start_bangla_recording_skeleton(app: &AppHandle, binding_id: &str) {
+    let start_time = Instant::now();
+    debug!(
+        "BanglaRomanization skeleton start called for binding: {}",
+        binding_id
+    );
+
+    let rm = app.state::<Arc<AudioRecordingManager>>();
+
+    // VAD remains useful for the shared capture path. Unlike the local action,
+    // this branch does not touch ModelManager, TranscriptionManager, or a
+    // local streaming session.
+    let rm_clone = Arc::clone(&rm);
+    std::thread::spawn(move || {
+        if let Err(e) = rm_clone.preload_vad() {
+            debug!("Bangla VAD pre-load failed: {}", e);
+        }
+    });
+
+    change_tray_icon(app, TrayIconState::Recording);
+
+    let settings = get_settings(app);
+    let is_always_on = settings.always_on_microphone;
+    let vad_policy = if settings.vad_enabled {
+        VadPolicy::Offline
+    } else {
+        VadPolicy::Disabled
+    };
+
+    // Bangla streaming is intentionally out of scope: use the same compact
+    // recording overlay as a non-streaming local model.
+    match settings.overlay_style {
+        OverlayStyle::Live | OverlayStyle::Minimal => show_recording_overlay(app),
+        OverlayStyle::None => {}
+    }
+
+    let mut recording_error: Option<String> = None;
+    if is_always_on {
+        let rm_clone = Arc::clone(&rm);
+        let app_clone = app.clone();
+        std::thread::spawn(move || {
+            play_feedback_sound_blocking(&app_clone, SoundType::Start);
+            rm_clone.apply_mute();
+        });
+
+        if let Err(e) = rm.try_start_recording(binding_id, vad_policy) {
+            debug!("Bangla recording failed: {}", e);
+            recording_error = Some(e);
+        }
+    } else {
+        match rm.try_start_recording(binding_id, vad_policy) {
+            Ok(()) => {
+                let app_clone = app.clone();
+                let rm_clone = Arc::clone(&rm);
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    play_feedback_sound_blocking(&app_clone, SoundType::Start);
+                    rm_clone.apply_mute();
+                });
+            }
+            Err(e) => {
+                debug!("Bangla recording failed: {}", e);
+                recording_error = Some(e);
+            }
+        }
+    }
+
+    if recording_error.is_none() {
+        shortcut::register_cancel_shortcut(app);
+    } else {
+        utils::hide_recording_overlay(app);
+        change_tray_icon(app, TrayIconState::Idle);
+        if let Some(err) = recording_error {
+            let error_type = if is_microphone_access_denied(&err) {
+                "microphone_permission_denied"
+            } else if is_no_input_device_error(&err) {
+                "no_input_device"
+            } else {
+                "unknown"
+            };
+            let _ = app.emit(
+                "recording-error",
+                RecordingErrorEvent {
+                    error_type: error_type.to_string(),
+                    detail: Some(err),
+                },
+            );
+        }
+    }
+
+    debug!(
+        "BanglaRomanization skeleton start completed in {:?}",
+        start_time.elapsed()
+    );
+}
+
+fn stop_bangla_recording_skeleton(app: &AppHandle, binding_id: &str) {
+    shortcut::unregister_cancel_shortcut(app);
+
+    debug!(
+        "BanglaRomanization skeleton stop called for binding: {}",
+        binding_id
+    );
+
+    let ah = app.clone();
+    let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
+
+    // Keep the established recorder-close feedback. This is not a cloud
+    // progress state yet; Checkpoint two will hold it while an STT request runs.
+    change_tray_icon(app, TrayIconState::Transcribing);
+    show_transcribing_overlay(app);
+    rm.remove_mute();
+    play_feedback_sound(app, SoundType::Stop);
+
+    let binding_id = binding_id.to_string();
+    let cancel_generation = rm.cancel_generation();
+
+    tauri::async_runtime::spawn(async move {
+        let _guard = FinishGuard(ah.clone());
+
+        match rm.stop_recording(&binding_id, cancel_generation) {
+            Some(samples) if rm.was_cancelled_since(cancel_generation) => {
+                debug!(
+                    "Bangla recording cancelled after capture close; discarding {} samples",
+                    samples.len()
+                );
+            }
+            Some(samples) => {
+                debug!(
+                    "Bangla recording skeleton captured {} samples; discarding without inference",
+                    samples.len()
+                );
+            }
+            None => {
+                debug!("Bangla recording skeleton ended without samples");
+            }
+        }
+
+        // No history, WAV persistence, local transcription, cloud request, or
+        // paste occurs in this checkpoint.
+        utils::hide_recording_overlay(&ah);
+        change_tray_icon(&ah, TrayIconState::Idle);
+    });
 }
 
 fn should_use_streaming_overlay(style: OverlayStyle, is_streaming: bool) -> bool {
@@ -467,6 +620,11 @@ pub(crate) async fn process_transcription_output(
 
 impl ShortcutAction for TranscribeAction {
     fn start(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
+        if !self.mode.uses_local_inference() {
+            start_bangla_recording_skeleton(app, binding_id);
+            return;
+        }
+
         let start_time = Instant::now();
         debug!("TranscribeAction::start called for binding: {}", binding_id);
 
@@ -616,6 +774,11 @@ impl ShortcutAction for TranscribeAction {
     }
 
     fn stop(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
+        if !self.mode.uses_local_inference() {
+            stop_bangla_recording_skeleton(app, binding_id);
+            return;
+        }
+
         // Unregister the cancel shortcut when transcription stops
         shortcut::unregister_cancel_shortcut(app);
 
@@ -649,7 +812,7 @@ impl ShortcutAction for TranscribeAction {
         play_feedback_sound(app, SoundType::Stop);
 
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
-        let post_process = self.post_process;
+        let post_process = self.mode.requests_post_processing();
         let cancel_generation = rm.cancel_generation();
 
         tauri::async_runtime::spawn(async move {
@@ -910,14 +1073,22 @@ impl ShortcutAction for TestAction {
 pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::new(|| {
     let mut map = HashMap::new();
     map.insert(
-        "transcribe".to_string(),
+        TRANSCRIBE_BINDING_ID.to_string(),
         Arc::new(TranscribeAction {
-            post_process: false,
+            mode: TranscriptionMode::Local,
         }) as Arc<dyn ShortcutAction>,
     );
     map.insert(
-        "transcribe_with_post_process".to_string(),
-        Arc::new(TranscribeAction { post_process: true }) as Arc<dyn ShortcutAction>,
+        TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID.to_string(),
+        Arc::new(TranscribeAction {
+            mode: TranscriptionMode::LocalWithPostProcessing,
+        }) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID.to_string(),
+        Arc::new(TranscribeAction {
+            mode: TranscriptionMode::BanglaRomanization,
+        }) as Arc<dyn ShortcutAction>,
     );
     map.insert(
         "cancel".to_string(),

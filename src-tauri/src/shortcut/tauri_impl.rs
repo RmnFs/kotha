@@ -10,6 +10,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 #[cfg(not(target_os = "linux"))]
 use crate::settings::get_settings;
 use crate::settings::{self, ShortcutBinding};
+use crate::transcription_mode::TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID;
 
 use super::handler::handle_shortcut_event;
 
@@ -24,7 +25,7 @@ pub fn init_shortcuts(app: &AppHandle) {
             continue; // Skip cancel shortcut, it will be registered dynamically
         }
         // Skip post-processing shortcut when the feature is disabled
-        if id == "transcribe_with_post_process" && !user_settings.post_process_enabled {
+        if id == TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID && !user_settings.post_process_enabled {
             continue;
         }
         let binding = user_settings

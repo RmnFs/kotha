@@ -199,6 +199,10 @@
           "transcribe_with_post_process": {
             "name": "Raccourci de post-traitement",
             "description": "Facultatif : Un raccourci dédié qui applique toujours le post-traitement IA à votre transcription."
+          },
+          "transcribe_bangla_romanized": {
+            "name": "Raccourci de romanisation bengalie",
+            "description": "Le raccourci clavier pour enregistrer de la parole bengalie à romaniser."
           }
         },
         "errors": {

@@ -39,6 +39,7 @@ use std::thread::{self, JoinHandle};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::settings::{self, get_settings, ShortcutBinding};
+use crate::transcription_mode::TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID;
 
 use super::handler::handle_shortcut_event;
 
@@ -434,7 +435,7 @@ pub fn init_shortcuts(app: &AppHandle) -> Result<(), String> {
             continue;
         }
         // Skip post-processing shortcut when the feature is disabled
-        if id == "transcribe_with_post_process" && !user_settings.post_process_enabled {
+        if id == TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID && !user_settings.post_process_enabled {
             continue;
         }
 

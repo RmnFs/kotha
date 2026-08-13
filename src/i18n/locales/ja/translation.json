@@ -199,6 +199,10 @@
           "transcribe_with_post_process": {
             "name": "後処理のショートカット",
             "description": "文字起こしに常に AI 後処理を適用するキーボードショートカット。 (任意)"
+          },
+          "transcribe_bangla_romanized": {
+            "name": "ベンガル語ローマ字化ショートカット",
+            "description": "ベンガル語の音声をローマ字化するために録音するキーボードショートカット。"
           }
         },
         "errors": {

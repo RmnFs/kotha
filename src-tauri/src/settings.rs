@@ -7,6 +7,11 @@ use std::fmt;
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
+use crate::transcription_mode::{
+    TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID, TRANSCRIBE_BINDING_ID,
+    TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID,
+};
+
 pub const APPLE_INTELLIGENCE_PROVIDER_ID: &str = "apple_intelligence";
 pub const APPLE_INTELLIGENCE_DEFAULT_MODEL_ID: &str = "Apple Intelligence";
 
@@ -811,9 +816,9 @@ pub fn get_default_settings() -> AppSettings {
 
     let mut bindings = HashMap::new();
     bindings.insert(
-        "transcribe".to_string(),
+        TRANSCRIBE_BINDING_ID.to_string(),
         ShortcutBinding {
-            id: "transcribe".to_string(),
+            id: TRANSCRIBE_BINDING_ID.to_string(),
             name: "Transcribe".to_string(),
             description: "Converts your speech into text.".to_string(),
             default_binding: default_shortcut.to_string(),
@@ -830,14 +835,33 @@ pub fn get_default_settings() -> AppSettings {
     let default_post_process_shortcut = "alt+shift+space";
 
     bindings.insert(
-        "transcribe_with_post_process".to_string(),
+        TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID.to_string(),
         ShortcutBinding {
-            id: "transcribe_with_post_process".to_string(),
+            id: TRANSCRIBE_WITH_POST_PROCESS_BINDING_ID.to_string(),
             name: "Transcribe with Post-Processing".to_string(),
             description: "Converts your speech into text and applies AI post-processing."
                 .to_string(),
             default_binding: default_post_process_shortcut.to_string(),
             current_binding: default_post_process_shortcut.to_string(),
+        },
+    );
+    #[cfg(target_os = "windows")]
+    let default_bangla_shortcut = "ctrl+shift+b";
+    #[cfg(target_os = "macos")]
+    let default_bangla_shortcut = "option+shift+b";
+    #[cfg(target_os = "linux")]
+    let default_bangla_shortcut = "ctrl+shift+b";
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    let default_bangla_shortcut = "alt+shift+b";
+
+    bindings.insert(
+        TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID.to_string(),
+        ShortcutBinding {
+            id: TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID.to_string(),
+            name: "Bangla Romanization".to_string(),
+            description: "Records Bangla speech for Romanization.".to_string(),
+            default_binding: default_bangla_shortcut.to_string(),
+            current_binding: default_bangla_shortcut.to_string(),
         },
     );
     bindings.insert(
@@ -974,14 +998,7 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
             updated = true;
         }
 
-        // Merge in any bindings added since this store was written.
-        for (key, value) in get_default_settings().bindings {
-            if let std::collections::hash_map::Entry::Vacant(entry) = settings.bindings.entry(key) {
-                debug!("Adding missing binding: {}", entry.key());
-                entry.insert(value);
-                updated = true;
-            }
-        }
+        updated |= merge_missing_default_bindings(&mut settings);
 
         if updated {
             store.set("settings", serde_json::to_value(&settings).unwrap());
@@ -999,6 +1016,21 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
     }
 
     settings
+}
+
+/// Merge shortcut bindings introduced after a settings store was first saved.
+/// Binding IDs are stable settings keys, so a new mode reaches existing users
+/// without a schema-version migration or overwriting their chosen bindings.
+fn merge_missing_default_bindings(settings: &mut AppSettings) -> bool {
+    let mut updated = false;
+    for (key, value) in get_default_settings().bindings {
+        if let std::collections::hash_map::Entry::Vacant(entry) = settings.bindings.entry(key) {
+            debug!("Adding missing binding: {}", entry.key());
+            entry.insert(value);
+            updated = true;
+        }
+    }
+    updated
 }
 
 /// Rebuilds settings from a store value that failed to deserialize as a whole.
@@ -1139,6 +1171,47 @@ mod tests {
 
     fn default_settings_json() -> serde_json::Value {
         serde_json::to_value(get_default_settings()).unwrap()
+    }
+
+    #[test]
+    fn default_settings_include_the_bangla_romanization_binding() {
+        let settings = get_default_settings();
+        let binding = settings
+            .bindings
+            .get(TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID)
+            .expect("Bangla Romanization must have a default shortcut binding");
+
+        assert_eq!(binding.id, TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID);
+        assert_eq!(binding.current_binding, binding.default_binding);
+
+        #[cfg(target_os = "macos")]
+        assert_eq!(binding.default_binding, "option+shift+b");
+        #[cfg(any(target_os = "windows", target_os = "linux"))]
+        assert_eq!(binding.default_binding, "ctrl+shift+b");
+    }
+
+    #[test]
+    fn missing_bangla_binding_is_merged_without_overwriting_existing_bindings() {
+        let mut settings = get_default_settings();
+        settings
+            .bindings
+            .remove(TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID);
+        settings
+            .bindings
+            .get_mut(TRANSCRIBE_BINDING_ID)
+            .unwrap()
+            .current_binding = "f13".to_string();
+
+        assert!(merge_missing_default_bindings(&mut settings));
+        assert_eq!(
+            settings.bindings[TRANSCRIBE_BINDING_ID].current_binding,
+            "f13"
+        );
+        assert_eq!(
+            settings.bindings[TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID].current_binding,
+            get_default_settings().bindings[TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID].current_binding
+        );
+        assert!(!merge_missing_default_bindings(&mut settings));
     }
 
     /// Every field must survive a partial store: a missing key must never fail

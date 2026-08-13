@@ -1,5 +1,6 @@
 use crate::actions::ACTION_MAP;
 use crate::managers::audio::AudioRecordingManager;
+use crate::transcription_mode::is_transcription_binding;
 use log::{debug, error, warn};
 use std::sync::mpsc::{self, Sender};
 use std::sync::Arc;
@@ -76,7 +77,7 @@ pub struct TranscriptionCoordinator {
 }
 
 pub fn is_transcribe_binding(id: &str) -> bool {
-    id == "transcribe" || id == "transcribe_with_post_process"
+    is_transcription_binding(id)
 }
 
 impl TranscriptionCoordinator {
@@ -284,11 +285,34 @@ fn stop(app: &AppHandle, stage: &mut Stage, binding_id: &str, hotkey_string: &st
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transcription_mode::TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID;
+
+    #[test]
+    fn bangla_binding_is_recognized_as_a_transcription_binding() {
+        assert!(is_transcribe_binding(
+            TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID
+        ));
+        assert!(!is_transcribe_binding("cancel"));
+    }
 
     #[test]
     fn push_to_talk_release_while_recording_defers_release() {
         assert_eq!(
             classify_ptt_event(None, false, true, "transcribe", Some("transcribe")),
+            PttAction::DeferRelease
+        );
+    }
+
+    #[test]
+    fn bangla_push_to_talk_release_defers_release() {
+        assert_eq!(
+            classify_ptt_event(
+                None,
+                false,
+                true,
+                TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID,
+                Some(TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID)
+            ),
             PttAction::DeferRelease
         );
     }
@@ -332,7 +356,7 @@ mod tests {
                 Some("transcribe"),
                 true,
                 true,
-                "transcribe_with_post_process",
+                TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID,
                 Some("transcribe")
             ),
             PttAction::Passthrough
