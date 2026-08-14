@@ -629,6 +629,44 @@
       "description": "Your personal Deepgram API key.",
       "placeholder": "Enter your Deepgram API key"
     },
+    "romanization": {
+      "title": "Romanization",
+      "provider": {
+        "title": "Provider",
+        "description": "The LLM used after Bangla transcription.",
+        "placeholder": "Select a provider",
+        "groq": "Groq",
+        "gemini": "Gemini",
+        "openai": "OpenAI"
+      },
+      "apiKey": {
+        "title": "API Key",
+        "description": "Your personal key for the selected Romanization provider.",
+        "placeholder": "Enter your API key"
+      },
+      "model": {
+        "title": "Model",
+        "description": "Model identifier for the selected Romanization provider."
+      },
+      "timeout": {
+        "title": "Timeout",
+        "description": "Maximum time to wait for Romanization, in seconds."
+      },
+      "errors": {
+        "title": "Bangla Romanization Failed",
+        "missing_configuration": "Add an API key and model for the selected Romanization provider.",
+        "unsupported_provider": "The selected Romanization provider is not available.",
+        "invalid_configuration": "Check the Bangla Romanization configuration.",
+        "empty_input": "No Bangla text was available for Romanization.",
+        "offline": "Could not reach the Romanization service. Check your connection.",
+        "timeout": "Romanization timed out. The Bangla transcription was pasted instead.",
+        "authentication": "The Romanization provider rejected the API key. The Bangla transcription was pasted instead.",
+        "rate_limited": "The Romanization provider is rate limiting requests. The Bangla transcription was pasted instead.",
+        "provider": "Romanization failed. The Bangla transcription was pasted instead.",
+        "malformed_response": "Romanization returned an unexpected response. The Bangla transcription was pasted instead.",
+        "empty_result": "Romanization returned no text. The Bangla transcription was pasted instead."
+      }
+    },
     "privacy": {
       "title": "Cloud audio disclosure",
       "description": "Bangla recordings are sent only after recording stops. Local English remains offline."
@@ -711,7 +749,8 @@
   },
   "overlay": {
     "transcribing": "Trascrizione...",
-    "processing": "Elaborazione..."
+    "processing": "Elaborazione...",
+    "romanizing": "Romanizing..."
   },
   "whatsNew": {
     "title": "Novità in Handy v{{version}}"

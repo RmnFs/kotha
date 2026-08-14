@@ -261,6 +261,46 @@ async changeBanglaSttModelSetting(model: string) : Promise<Result<null, string>>
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Selects the required Romanization provider for the Bangla shortcut. This
+ * does not alter Deepgram configuration or optional English post-processing.
+ */
+async changeBanglaRomanizationProviderSetting(providerId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_bangla_romanization_provider_setting", { providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Stores the credential for one of the Bangla Romanization providers in the
+ * existing redacted settings map.
+ */
+async changeBanglaRomanizationApiKeySetting(providerId: string, apiKey: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_bangla_romanization_api_key_setting", { providerId, apiKey }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeBanglaRomanizationModelSetting(providerId: string, model: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_bangla_romanization_model_setting", { providerId, model }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeBanglaRomanizationTimeoutSetting(timeoutSeconds: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_bangla_romanization_timeout_setting", { timeoutSeconds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeExperimentalEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_experimental_enabled_setting", { enabled }) };
@@ -1003,7 +1043,12 @@ selected_channel?: number | null; clamshell_microphone?: string | null; selected
  * Cloud STT configuration for the Bangla shortcut. It is intentionally
  * separate from local model and English post-processing settings.
  */
-bangla_stt_provider_id?: string; bangla_stt_endpoint?: string; bangla_stt_api_keys?: SecretMap; bangla_stt_models?: Partial<{ [key in string]: string }>; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; theme?: Theme; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
+bangla_stt_provider_id?: string; bangla_stt_endpoint?: string; bangla_stt_api_keys?: SecretMap; bangla_stt_models?: Partial<{ [key in string]: string }>; 
+/**
+ * Required LLM Romanization configuration for the Bangla shortcut. This
+ * remains separate from both Deepgram STT and optional English polishing.
+ */
+bangla_romanization_provider_id?: string; bangla_romanization_api_keys?: SecretMap; bangla_romanization_models?: Partial<{ [key in string]: string }>; bangla_romanization_timeout_seconds?: number; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; theme?: Theme; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
 /**
  * Debug-gated ("beta") receipt-sequenced paste: restore the clipboard only
  * after the target app actually reads the transcript, instead of after a

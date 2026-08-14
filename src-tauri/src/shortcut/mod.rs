@@ -1069,6 +1069,80 @@ pub fn change_bangla_stt_model_setting(app: AppHandle, model: String) -> Result<
     Ok(())
 }
 
+/// Selects the required Romanization provider for the Bangla shortcut. This
+/// does not alter Deepgram configuration or optional English post-processing.
+#[tauri::command]
+#[specta::specta]
+pub fn change_bangla_romanization_provider_setting(
+    app: AppHandle,
+    provider_id: String,
+) -> Result<(), String> {
+    if !matches!(provider_id.as_str(), "groq" | "gemini" | "openai") {
+        return Err("Unsupported Bangla Romanization provider".to_string());
+    }
+    let mut settings = settings::get_settings(&app);
+    settings.bangla_romanization_provider_id = provider_id;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Stores the credential for one of the Bangla Romanization providers in the
+/// existing redacted settings map.
+#[tauri::command]
+#[specta::specta]
+pub fn change_bangla_romanization_api_key_setting(
+    app: AppHandle,
+    provider_id: String,
+    api_key: String,
+) -> Result<(), String> {
+    if !matches!(provider_id.as_str(), "groq" | "gemini" | "openai") {
+        return Err("Unsupported Bangla Romanization provider".to_string());
+    }
+    let mut settings = settings::get_settings(&app);
+    settings
+        .bangla_romanization_api_keys
+        .insert(provider_id, api_key);
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_bangla_romanization_model_setting(
+    app: AppHandle,
+    provider_id: String,
+    model: String,
+) -> Result<(), String> {
+    if !matches!(provider_id.as_str(), "groq" | "gemini" | "openai") {
+        return Err("Unsupported Bangla Romanization provider".to_string());
+    }
+    let model = model.trim();
+    if model.is_empty() {
+        return Err("Bangla Romanization model cannot be empty".to_string());
+    }
+    let mut settings = settings::get_settings(&app);
+    settings
+        .bangla_romanization_models
+        .insert(provider_id, model.to_string());
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_bangla_romanization_timeout_setting(
+    app: AppHandle,
+    timeout_seconds: u64,
+) -> Result<(), String> {
+    if !(5..=120).contains(&timeout_seconds) {
+        return Err("Bangla Romanization timeout must be between 5 and 120 seconds".to_string());
+    }
+    let mut settings = settings::get_settings(&app);
+    settings.bangla_romanization_timeout_seconds = timeout_seconds;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn change_experimental_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {

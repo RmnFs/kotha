@@ -143,6 +143,25 @@ function App() {
     };
   }, [t]);
 
+  // Romanization errors are likewise content-free. A verified raw Bangla
+  // transcript may still be pasted by the backend as the explicit fallback.
+  useEffect(() => {
+    const unlisten = listen<{ error_type: string }>(
+      "bangla-romanization-error",
+      (event) => {
+        toast.error(t("bangla.romanization.errors.title"), {
+          description: t(
+            `bangla.romanization.errors.${event.payload.error_type}`,
+            { defaultValue: t("bangla.romanization.errors.provider") },
+          ),
+        });
+      },
+    );
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
   // Listen for paste failures and show a toast.
   // The technical error detail is logged to handy.log on the Rust side
   // (see actions.rs `error!("Failed to paste transcription: ...")`),

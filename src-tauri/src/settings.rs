@@ -442,6 +442,16 @@ pub struct AppSettings {
     pub bangla_stt_api_keys: SecretMap,
     #[serde(default = "default_bangla_stt_models")]
     pub bangla_stt_models: HashMap<String, String>,
+    /// Required LLM Romanization configuration for the Bangla shortcut. This
+    /// remains separate from both Deepgram STT and optional English polishing.
+    #[serde(default = "default_bangla_romanization_provider_id")]
+    pub bangla_romanization_provider_id: String,
+    #[serde(default = "default_bangla_romanization_api_keys")]
+    pub bangla_romanization_api_keys: SecretMap,
+    #[serde(default = "default_bangla_romanization_models")]
+    pub bangla_romanization_models: HashMap<String, String>,
+    #[serde(default = "default_bangla_romanization_timeout_seconds")]
+    pub bangla_romanization_timeout_seconds: u64,
     #[serde(default)]
     pub mute_while_recording: bool,
     #[serde(default)]
@@ -623,6 +633,30 @@ fn default_bangla_stt_api_keys() -> SecretMap {
 
 fn default_bangla_stt_models() -> HashMap<String, String> {
     HashMap::from([("deepgram".to_string(), "nova-3".to_string())])
+}
+
+fn default_bangla_romanization_provider_id() -> String {
+    "gemini".to_string()
+}
+
+fn default_bangla_romanization_api_keys() -> SecretMap {
+    SecretMap(HashMap::from([
+        ("groq".to_string(), String::new()),
+        ("gemini".to_string(), String::new()),
+        ("openai".to_string(), String::new()),
+    ]))
+}
+
+fn default_bangla_romanization_models() -> HashMap<String, String> {
+    HashMap::from([
+        ("groq".to_string(), "llama-3.3-70b-versatile".to_string()),
+        ("gemini".to_string(), "gemini-3.1-flash-lite".to_string()),
+        ("openai".to_string(), "gpt-5-mini".to_string()),
+    ])
+}
+
+fn default_bangla_romanization_timeout_seconds() -> u64 {
+    45
 }
 
 fn default_app_language() -> String {
@@ -847,6 +881,46 @@ fn ensure_bangla_stt_defaults(settings: &mut AppSettings) -> bool {
     changed
 }
 
+/// Adds Romanization providers introduced after an existing checkpoint-2
+/// settings store was written, without replacing a configured credential or
+/// model. The provider remains selected independently from English polishing.
+fn ensure_bangla_romanization_defaults(settings: &mut AppSettings) -> bool {
+    let mut changed = false;
+    for (provider_id, model) in default_bangla_romanization_models() {
+        if !settings
+            .bangla_romanization_api_keys
+            .contains_key(&provider_id)
+        {
+            settings
+                .bangla_romanization_api_keys
+                .insert(provider_id.clone(), String::new());
+            changed = true;
+        }
+        if !settings
+            .bangla_romanization_models
+            .contains_key(&provider_id)
+        {
+            settings
+                .bangla_romanization_models
+                .insert(provider_id, model);
+            changed = true;
+        }
+    }
+    if !matches!(
+        settings.bangla_romanization_provider_id.as_str(),
+        "groq" | "gemini" | "openai"
+    ) {
+        settings.bangla_romanization_provider_id = default_bangla_romanization_provider_id();
+        changed = true;
+    }
+    if !(5..=120).contains(&settings.bangla_romanization_timeout_seconds) {
+        settings.bangla_romanization_timeout_seconds =
+            default_bangla_romanization_timeout_seconds();
+        changed = true;
+    }
+    changed
+}
+
 pub const SETTINGS_STORE_PATH: &str = "settings_store.json";
 
 pub fn get_default_settings() -> AppSettings {
@@ -964,6 +1038,10 @@ pub fn get_default_settings() -> AppSettings {
         bangla_stt_endpoint: default_bangla_stt_endpoint(),
         bangla_stt_api_keys: default_bangla_stt_api_keys(),
         bangla_stt_models: default_bangla_stt_models(),
+        bangla_romanization_provider_id: default_bangla_romanization_provider_id(),
+        bangla_romanization_api_keys: default_bangla_romanization_api_keys(),
+        bangla_romanization_models: default_bangla_romanization_models(),
+        bangla_romanization_timeout_seconds: default_bangla_romanization_timeout_seconds(),
         mute_while_recording: false,
         append_trailing_space: false,
         app_language: default_app_language(),
@@ -1060,7 +1138,10 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
         default_settings
     };
 
-    if ensure_post_process_defaults(&mut settings) | ensure_bangla_stt_defaults(&mut settings) {
+    if ensure_post_process_defaults(&mut settings)
+        | ensure_bangla_stt_defaults(&mut settings)
+        | ensure_bangla_romanization_defaults(&mut settings)
+    {
         store.set("settings", serde_json::to_value(&settings).unwrap());
     }
 
@@ -1249,6 +1330,25 @@ mod tests {
         );
         assert_eq!(settings.bangla_stt_models["deepgram"], "nova-3");
         assert!(settings.bangla_stt_api_keys["deepgram"].is_empty());
+    }
+
+    #[test]
+    fn romanization_defaults_add_all_provider_credentials_without_overwriting_values() {
+        let mut settings = get_default_settings();
+        settings.bangla_romanization_api_keys.remove("groq");
+        settings.bangla_romanization_models.remove("groq");
+        settings
+            .bangla_romanization_api_keys
+            .insert("gemini".to_string(), "user-key".to_string());
+
+        assert!(ensure_bangla_romanization_defaults(&mut settings));
+        assert!(settings.bangla_romanization_api_keys.contains_key("groq"));
+        assert!(settings.bangla_romanization_models.contains_key("groq"));
+        assert_eq!(settings.bangla_romanization_api_keys["gemini"], "user-key");
+        assert_eq!(
+            settings.bangla_romanization_models["gemini"],
+            "gemini-3.1-flash-lite"
+        );
     }
 
     #[test]

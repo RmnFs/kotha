@@ -602,6 +602,12 @@ pub fn show_processing_overlay(app_handle: &AppHandle) {
     show_overlay_state(app_handle, "processing");
 }
 
+/// Shows the required Bangla Romanization stage without changing the generic
+/// English post-processing copy.
+pub fn show_romanizing_overlay(app_handle: &AppHandle) {
+    show_overlay_state(app_handle, "romanizing");
+}
+
 /// Updates the overlay window position based on current settings
 pub fn update_overlay_position(app_handle: &AppHandle) {
     // Positioning queries monitors/cursor (GDK/Xlib on Linux) and moves the

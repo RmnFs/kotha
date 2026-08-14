@@ -2,6 +2,7 @@
 use crate::apple_intelligence;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error, VadPolicy};
+use crate::bangla_romanization::{romanize_bangla, RomanizationError, RomanizationInput};
 use crate::bangla_transcription::{
     transcribe_bangla, CancellationContext, CloudTranscriptionError, RecordedAudio,
 };
@@ -18,7 +19,8 @@ use crate::transcription_mode::{
 };
 use crate::tray::{change_tray_icon, TrayIconState};
 use crate::utils::{
-    self, show_processing_overlay, show_recording_overlay, show_transcribing_overlay,
+    self, show_processing_overlay, show_recording_overlay, show_romanizing_overlay,
+    show_transcribing_overlay,
 };
 use crate::TranscriptionCoordinator;
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
@@ -41,6 +43,11 @@ struct RecordingErrorEvent {
 
 #[derive(Clone, serde::Serialize)]
 struct BanglaTranscriptionErrorEvent {
+    error_type: String,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct BanglaRomanizationErrorEvent {
     error_type: String,
 }
 
@@ -280,11 +287,11 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
         // `complete_unless_cancelled` drops the HTTP future at cancellation,
         // aborting the upload/request; the generation checks below also block a
         // late response from ever reaching the paste layer.
-        let Some(result) =
-            complete_unless_cancelled(transcribe_bangla(audio, &settings, cancellation), || {
-                rm.was_cancelled_since(cancel_generation)
-            })
-            .await
+        let Some(result) = complete_unless_cancelled(
+            transcribe_bangla(audio, &settings, cancellation.clone()),
+            || rm.was_cancelled_since(cancel_generation),
+        )
+        .await
         else {
             debug!("Bangla cloud request cancelled");
             utils::hide_recording_overlay(&ah);
@@ -294,24 +301,50 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
 
         match result {
             Ok(transcript) if !rm.was_cancelled_since(cancel_generation) => {
-                // Checkpoint 2 deliberately pastes raw Bangla only to verify
-                // STT. Checkpoint 3 replaces this with required Romanization.
-                let ah_for_paste = ah.clone();
-                let rm_for_paste = Arc::clone(&rm);
-                if let Err(error) = ah.run_on_main_thread(move || {
-                    if rm_for_paste.was_cancelled_since(cancel_generation) {
+                // Romanization is a separate, required stage of the normal
+                // Bangla route. The explicit fallback below is a product
+                // decision: only a verified STT transcript can be pasted when
+                // its Romanization provider fails.
+                show_romanizing_overlay(&ah);
+                let raw_bangla = transcript.text;
+                let input = match RomanizationInput::new(raw_bangla.clone()) {
+                    Ok(input) => input,
+                    Err(error) => {
+                        emit_bangla_romanization_error(&ah, error);
+                        schedule_bangla_paste(&ah, Arc::clone(&rm), cancel_generation, raw_bangla);
                         return;
                     }
-                    if let Err(error) = utils::paste(transcript.text, ah_for_paste.clone()) {
-                        error!("Failed to paste Bangla transcription: {error}");
-                        let _ = ah_for_paste.emit("paste-error", ());
-                    }
-                    utils::hide_recording_overlay(&ah_for_paste);
-                    change_tray_icon(&ah_for_paste, TrayIconState::Idle);
-                }) {
-                    error!("Failed to schedule Bangla paste: {error}");
+                };
+                let Some(romanization) = complete_unless_cancelled(
+                    romanize_bangla(input, &settings, cancellation),
+                    || rm.was_cancelled_since(cancel_generation),
+                )
+                .await
+                else {
+                    debug!("Bangla Romanization request cancelled");
                     utils::hide_recording_overlay(&ah);
                     change_tray_icon(&ah, TrayIconState::Idle);
+                    return;
+                };
+
+                match romanization {
+                    Ok(result) if !rm.was_cancelled_since(cancel_generation) => {
+                        schedule_bangla_paste(
+                            &ah,
+                            Arc::clone(&rm),
+                            cancel_generation,
+                            result.romanized_text,
+                        );
+                    }
+                    Ok(_) | Err(RomanizationError::Cancelled) => {
+                        debug!("Bangla Romanization result suppressed after cancellation");
+                        utils::hide_recording_overlay(&ah);
+                        change_tray_icon(&ah, TrayIconState::Idle);
+                    }
+                    Err(error) => {
+                        emit_bangla_romanization_error(&ah, error);
+                        schedule_bangla_paste(&ah, Arc::clone(&rm), cancel_generation, raw_bangla);
+                    }
                 }
             }
             Ok(_) | Err(CloudTranscriptionError::Cancelled) => {
@@ -328,6 +361,31 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
     });
 }
 
+fn schedule_bangla_paste(
+    app: &AppHandle,
+    recording_manager: Arc<AudioRecordingManager>,
+    cancel_generation: u64,
+    text: String,
+) {
+    let app_for_paste = app.clone();
+    let app_for_schedule_failure = app.clone();
+    if let Err(error) = app.run_on_main_thread(move || {
+        if recording_manager.was_cancelled_since(cancel_generation) {
+            return;
+        }
+        if let Err(error) = utils::paste(text, app_for_paste.clone()) {
+            error!("Failed to paste Bangla result: {error}");
+            let _ = app_for_paste.emit("paste-error", ());
+        }
+        utils::hide_recording_overlay(&app_for_paste);
+        change_tray_icon(&app_for_paste, TrayIconState::Idle);
+    }) {
+        error!("Failed to schedule Bangla paste: {error}");
+        utils::hide_recording_overlay(&app_for_schedule_failure);
+        change_tray_icon(&app_for_schedule_failure, TrayIconState::Idle);
+    }
+}
+
 fn emit_bangla_transcription_error(app: &AppHandle, error: CloudTranscriptionError) {
     // Error variants are deliberately content-free. Do not add provider body,
     // API-key, audio, transcript, or endpoint details to this event or logs.
@@ -335,6 +393,19 @@ fn emit_bangla_transcription_error(app: &AppHandle, error: CloudTranscriptionErr
     let _ = app.emit(
         "bangla-transcription-error",
         BanglaTranscriptionErrorEvent {
+            error_type: error.event_code().to_string(),
+        },
+    );
+}
+
+fn emit_bangla_romanization_error(app: &AppHandle, error: RomanizationError) {
+    // Keep the raw STT text private. The UI receives only a stable error code;
+    // the action may then deliberately paste that already-verified text as the
+    // configured fallback.
+    warn!("Bangla Romanization failed: {}", error.event_code());
+    let _ = app.emit(
+        "bangla-romanization-error",
+        BanglaRomanizationErrorEvent {
             error_type: error.event_code().to_string(),
         },
     );

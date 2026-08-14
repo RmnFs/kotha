@@ -4,6 +4,7 @@ mod apple_intelligence;
 mod audio_feedback;
 pub mod audio_toolkit;
 mod autostart;
+mod bangla_romanization;
 mod bangla_transcription;
 mod catalog;
 pub mod cli;
@@ -635,6 +636,10 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_bangla_stt_endpoint_setting,
             shortcut::change_bangla_stt_api_key_setting,
             shortcut::change_bangla_stt_model_setting,
+            shortcut::change_bangla_romanization_provider_setting,
+            shortcut::change_bangla_romanization_api_key_setting,
+            shortcut::change_bangla_romanization_model_setting,
+            shortcut::change_bangla_romanization_timeout_setting,
             shortcut::change_experimental_enabled_setting,
             shortcut::change_post_process_base_url_setting,
             shortcut::change_post_process_api_key_setting,
