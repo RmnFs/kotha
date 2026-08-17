@@ -634,6 +634,10 @@
     },
     "romanization": {
       "title": "Romanization",
+      "enabled": {
+        "title": "Romanize Bangla transcription",
+        "description": "When enabled, transcribed Bangla is sent to the selected provider and pasted in Latin script. When disabled, the original Bangla text is pasted directly."
+      },
       "provider": {
         "title": "Provider",
         "description": "The LLM used after Bangla transcription.",

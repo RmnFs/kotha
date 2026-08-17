@@ -1069,8 +1069,22 @@ pub fn change_bangla_stt_model_setting(app: AppHandle, model: String) -> Result<
     Ok(())
 }
 
-/// Selects the required Romanization provider for the Bangla shortcut. This
-/// does not alter Deepgram configuration or optional English post-processing.
+/// Enables or disables the optional Romanization stage for the Bangla
+/// shortcut. This does not alter the Bangla shortcut or Deepgram settings.
+#[tauri::command]
+#[specta::specta]
+pub fn change_bangla_romanization_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.bangla_romanization_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Selects the Romanization provider when the optional Romanization stage is
+/// enabled. This does not alter Deepgram configuration or English polishing.
 #[tauri::command]
 #[specta::specta]
 pub fn change_bangla_romanization_provider_setting(

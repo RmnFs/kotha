@@ -442,8 +442,11 @@ pub struct AppSettings {
     pub bangla_stt_api_keys: SecretMap,
     #[serde(default = "default_bangla_stt_models")]
     pub bangla_stt_models: HashMap<String, String>,
-    /// Required LLM Romanization configuration for the Bangla shortcut. This
+    /// Optional LLM Romanization configuration for the Bangla shortcut. This
     /// remains separate from both Deepgram STT and optional English polishing.
+    /// When disabled, a verified Deepgram transcript is pasted directly.
+    #[serde(default = "default_bangla_romanization_enabled")]
+    pub bangla_romanization_enabled: bool,
     #[serde(default = "default_bangla_romanization_provider_id")]
     pub bangla_romanization_provider_id: String,
     #[serde(default = "default_bangla_romanization_api_keys")]
@@ -639,6 +642,13 @@ fn default_bangla_romanization_provider_id() -> String {
     "gemini".to_string()
 }
 
+/// Keep the current product behavior for fresh installs and stores created
+/// before this field existed. Users can opt out to paste Bangla script
+/// immediately after cloud transcription.
+fn default_bangla_romanization_enabled() -> bool {
+    true
+}
+
 fn default_bangla_romanization_api_keys() -> SecretMap {
     SecretMap(HashMap::from([
         ("groq".to_string(), String::new()),
@@ -651,7 +661,7 @@ fn default_bangla_romanization_models() -> HashMap<String, String> {
     HashMap::from([
         ("groq".to_string(), "llama-3.3-70b-versatile".to_string()),
         ("gemini".to_string(), "gemini-3.1-flash-lite".to_string()),
-        ("openai".to_string(), "gpt-5-mini".to_string()),
+        ("openai".to_string(), "gpt-5.6-luna".to_string()),
     ])
 }
 
@@ -1038,6 +1048,7 @@ pub fn get_default_settings() -> AppSettings {
         bangla_stt_endpoint: default_bangla_stt_endpoint(),
         bangla_stt_api_keys: default_bangla_stt_api_keys(),
         bangla_stt_models: default_bangla_stt_models(),
+        bangla_romanization_enabled: default_bangla_romanization_enabled(),
         bangla_romanization_provider_id: default_bangla_romanization_provider_id(),
         bangla_romanization_api_keys: default_bangla_romanization_api_keys(),
         bangla_romanization_models: default_bangla_romanization_models(),
@@ -1349,6 +1360,25 @@ mod tests {
             settings.bangla_romanization_models["gemini"],
             "gemini-3.1-flash-lite"
         );
+        assert_eq!(
+            settings.bangla_romanization_models["openai"],
+            "gpt-5.6-luna"
+        );
+    }
+
+    #[test]
+    fn bangla_romanization_defaults_on_and_preserves_an_explicit_opt_out() {
+        assert!(get_default_settings().bangla_romanization_enabled);
+
+        let settings: AppSettings = serde_json::from_value(serde_json::json!({
+            "bangla_romanization_enabled": false
+        }))
+        .expect("an explicit Romanization preference must deserialize");
+        assert!(!settings.bangla_romanization_enabled);
+
+        let legacy_settings: AppSettings = serde_json::from_value(serde_json::json!({}))
+            .expect("a legacy settings store must receive the default");
+        assert!(legacy_settings.bangla_romanization_enabled);
     }
 
     #[test]

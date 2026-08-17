@@ -301,12 +301,21 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
 
         match result {
             Ok(transcript) if !rm.was_cancelled_since(cancel_generation) => {
-                // Romanization is a separate, required stage of the normal
-                // Bangla route. The explicit fallback below is a product
-                // decision: only a verified STT transcript can be pasted when
-                // its Romanization provider fails.
-                show_romanizing_overlay(&ah);
                 let raw_bangla = transcript.text;
+
+                // A disabled Romanization stage still uses the normal
+                // cancellation-safe paste contract; it simply avoids sending
+                // the verified Bangla transcript to an LLM provider.
+                if !should_romanize_bangla(&settings) {
+                    schedule_bangla_paste(&ah, Arc::clone(&rm), cancel_generation, raw_bangla);
+                    return;
+                }
+
+                // Romanization is an optional stage of the Bangla route. The
+                // explicit fallback below is a product decision: only a
+                // verified STT transcript can be pasted when its Romanization
+                // provider fails.
+                show_romanizing_overlay(&ah);
                 let input = match RomanizationInput::new(raw_bangla.clone()) {
                     Ok(input) => input,
                     Err(error) => {
@@ -359,6 +368,10 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
             }
         }
     });
+}
+
+fn should_romanize_bangla(settings: &AppSettings) -> bool {
+    settings.bangla_romanization_enabled
 }
 
 fn schedule_bangla_paste(
@@ -1248,10 +1261,10 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
 #[cfg(test)]
 mod tests {
     use super::{
-        complete_unless_cancelled, is_blank_transcription, should_use_streaming_overlay,
-        strip_think_block,
+        complete_unless_cancelled, is_blank_transcription, should_romanize_bangla,
+        should_use_streaming_overlay, strip_think_block,
     };
-    use crate::settings::OverlayStyle;
+    use crate::settings::{get_default_settings, OverlayStyle};
     use std::future;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
@@ -1269,6 +1282,15 @@ mod tests {
     fn non_blank_transcription_is_kept() {
         assert!(!is_blank_transcription("hello"));
         assert!(!is_blank_transcription("  hello  "));
+    }
+
+    #[test]
+    fn bangla_romanization_route_follows_the_persisted_setting() {
+        let mut settings = get_default_settings();
+        assert!(should_romanize_bangla(&settings));
+
+        settings.bangla_romanization_enabled = false;
+        assert!(!should_romanize_bangla(&settings));
     }
 
     #[test]

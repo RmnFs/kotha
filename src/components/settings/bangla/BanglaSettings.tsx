@@ -3,7 +3,12 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { commands } from "@/bindings";
 import { Input } from "../../ui/Input";
-import { Dropdown, SettingContainer, SettingsGroup } from "../../ui";
+import {
+  Dropdown,
+  SettingContainer,
+  SettingsGroup,
+  ToggleSwitch,
+} from "../../ui";
 import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
 import { useSettings } from "../../../hooks/useSettings";
 
@@ -15,7 +20,8 @@ import { useSettings } from "../../../hooks/useSettings";
  */
 export const BanglaSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, refreshSettings } = useSettings();
+  const { settings, refreshSettings, getSetting, updateSetting, isUpdating } =
+    useSettings();
   const providerId = settings?.bangla_stt_provider_id ?? "deepgram";
   const apiKey = settings?.bangla_stt_api_keys?.[providerId] ?? "";
   const model = settings?.bangla_stt_models?.[providerId] ?? "nova-3";
@@ -28,6 +34,7 @@ export const BanglaSettings: React.FC = () => {
     settings?.bangla_romanization_models?.[romanizationProviderId] ?? "";
   const romanizationTimeout =
     settings?.bangla_romanization_timeout_seconds ?? 45;
+  const romanizationEnabled = getSetting("bangla_romanization_enabled") ?? true;
   const [endpointDraft, setEndpointDraft] = useState(endpoint);
   const [modelDraft, setModelDraft] = useState(model);
   const [romanizationModelDraft, setRomanizationModelDraft] =
@@ -137,6 +144,18 @@ export const BanglaSettings: React.FC = () => {
       </SettingsGroup>
 
       <SettingsGroup title={t("bangla.romanization.title")}>
+        <ToggleSwitch
+          checked={romanizationEnabled}
+          onChange={(enabled) =>
+            void updateSetting("bangla_romanization_enabled", enabled)
+          }
+          isUpdating={isUpdating("bangla_romanization_enabled")}
+          label={t("bangla.romanization.enabled.title")}
+          description={t("bangla.romanization.enabled.description")}
+          descriptionMode="tooltip"
+          grouped={true}
+        />
+
         <SettingContainer
           title={t("bangla.romanization.provider.title")}
           description={t("bangla.romanization.provider.description")}
@@ -164,6 +183,7 @@ export const BanglaSettings: React.FC = () => {
               save(commands.changeBanglaRomanizationProviderSetting(providerId))
             }
             placeholder={t("bangla.romanization.provider.placeholder")}
+            disabled={!romanizationEnabled}
           />
         </SettingContainer>
 
@@ -185,7 +205,7 @@ export const BanglaSettings: React.FC = () => {
               )
             }
             placeholder={t("bangla.romanization.apiKey.placeholder")}
-            disabled={false}
+            disabled={!romanizationEnabled}
             className="min-w-[320px]"
           />
         </SettingContainer>
@@ -210,6 +230,7 @@ export const BanglaSettings: React.FC = () => {
             }
             className="min-w-[260px]"
             aria-label={t("bangla.romanization.model.title")}
+            disabled={!romanizationEnabled}
           />
         </SettingContainer>
 
@@ -238,6 +259,7 @@ export const BanglaSettings: React.FC = () => {
             }}
             className="w-28"
             aria-label={t("bangla.romanization.timeout.title")}
+            disabled={!romanizationEnabled}
           />
         </SettingContainer>
       </SettingsGroup>

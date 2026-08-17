@@ -636,6 +636,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_bangla_stt_endpoint_setting,
             shortcut::change_bangla_stt_api_key_setting,
             shortcut::change_bangla_stt_model_setting,
+            shortcut::change_bangla_romanization_enabled_setting,
             shortcut::change_bangla_romanization_provider_setting,
             shortcut::change_bangla_romanization_api_key_setting,
             shortcut::change_bangla_romanization_model_setting,

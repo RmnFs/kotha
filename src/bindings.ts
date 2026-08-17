@@ -262,8 +262,20 @@ async changeBanglaSttModelSetting(model: string) : Promise<Result<null, string>>
 }
 },
 /**
- * Selects the required Romanization provider for the Bangla shortcut. This
- * does not alter Deepgram configuration or optional English post-processing.
+ * Enables or disables the optional Romanization stage for the Bangla
+ * shortcut. This does not alter the Bangla shortcut or Deepgram settings.
+ */
+async changeBanglaRomanizationEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_bangla_romanization_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Selects the Romanization provider when the optional Romanization stage is
+ * enabled. This does not alter Deepgram configuration or English polishing.
  */
 async changeBanglaRomanizationProviderSetting(providerId: string) : Promise<Result<null, string>> {
     try {
@@ -1045,10 +1057,11 @@ selected_channel?: number | null; clamshell_microphone?: string | null; selected
  */
 bangla_stt_provider_id?: string; bangla_stt_endpoint?: string; bangla_stt_api_keys?: SecretMap; bangla_stt_models?: Partial<{ [key in string]: string }>; 
 /**
- * Required LLM Romanization configuration for the Bangla shortcut. This
+ * Optional LLM Romanization configuration for the Bangla shortcut. This
  * remains separate from both Deepgram STT and optional English polishing.
+ * When disabled, a verified Deepgram transcript is pasted directly.
  */
-bangla_romanization_provider_id?: string; bangla_romanization_api_keys?: SecretMap; bangla_romanization_models?: Partial<{ [key in string]: string }>; bangla_romanization_timeout_seconds?: number; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; theme?: Theme; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
+bangla_romanization_enabled?: boolean; bangla_romanization_provider_id?: string; bangla_romanization_api_keys?: SecretMap; bangla_romanization_models?: Partial<{ [key in string]: string }>; bangla_romanization_timeout_seconds?: number; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; theme?: Theme; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
 /**
  * Debug-gated ("beta") receipt-sequenced paste: restore the clipboard only
  * after the target app actually reads the transcript, instead of after a

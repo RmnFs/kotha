@@ -1,3 +1,7 @@
+This Repo is a cloned from [Handy](https://github.com/cjpais/Handy) repo for adding some features 
+after its ready changes in readme and all references will be made accordingly. Current readme is of the Handt codebase
+ 
+
 # Handy
 
 [![Discord](https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/invite/WVBeWsNXK4)
