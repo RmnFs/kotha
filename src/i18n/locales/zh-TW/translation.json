@@ -637,7 +637,7 @@
       },
       "provider": {
         "title": "Provider",
-        "description": "The LLM used after Bangla transcription.",
+        "description": "The LLM used after Bangla transcription. Keys and models are saved separately for each provider.",
         "placeholder": "Select a provider",
         "groq": "Groq",
         "gemini": "Gemini",
@@ -645,16 +645,16 @@
       },
       "apiKey": {
         "title": "API Key",
-        "description": "Your personal key for the selected Romanization provider.",
+        "description": "Your personal key for the selected provider. Keys, transcripts, and results are excluded from Debug logs.",
         "placeholder": "Enter your API key"
       },
       "model": {
         "title": "Model",
-        "description": "Model identifier for the selected Romanization provider."
+        "description": "Enter the exact provider model ID. For Groq, use openai/gpt-oss-120b. The protected Romanization prompt is applied for every model."
       },
       "timeout": {
         "title": "Timeout",
-        "description": "Maximum time to wait for Romanization, in seconds."
+        "description": "Maximum time to wait for Romanization, in seconds. Debug Mode records safe timing and error details, never keys or text."
       },
       "errors": {
         "title": "Bangla Romanization Failed",
@@ -665,7 +665,11 @@
         "offline": "Could not reach the Romanization service. Check your connection.",
         "timeout": "Romanization timed out. The Bangla transcription was pasted instead.",
         "authentication": "The Romanization provider rejected the API key. The Bangla transcription was pasted instead.",
+        "permission_denied": "This API key is not allowed to use the selected Romanization model. The Bangla transcription was pasted instead.",
         "rate_limited": "The Romanization provider is rate limiting requests. The Bangla transcription was pasted instead.",
+        "invalid_request": "The selected model rejected the Romanization request. Check the model and try again.",
+        "model_unavailable": "The selected Romanization model is unavailable. Check the model ID.",
+        "provider_unavailable": "The Romanization provider is temporarily unavailable. The Bangla transcription was pasted instead.",
         "provider": "Romanization failed. The Bangla transcription was pasted instead.",
         "malformed_response": "Romanization returned an unexpected response. The Bangla transcription was pasted instead.",
         "empty_result": "Romanization returned no text. The Bangla transcription was pasted instead."

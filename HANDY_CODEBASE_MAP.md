@@ -158,17 +158,17 @@ To add a different STT provider, add an adapter module implementing `BanglaTrans
 | `BanglaRomanizationProvider` | Provider-neutral adapter trait for a required semantic stage.                                                    |
 | `romanize_bangla`            | Dispatches the selected Groq, Gemini, or OpenAI adapter.                                                         |
 
-Romanization error codes are `missing_configuration`, `unsupported_provider`, `invalid_configuration`, `empty_input`, `offline`, `timeout`, `authentication`, `rate_limited`, `provider`, `malformed_response`, and `empty_result` (plus `cancelled`). The action emits only the code through `bangla-romanization-error`.
+Romanization error codes are `missing_configuration`, `unsupported_provider`, `invalid_configuration`, `empty_input`, `offline`, `timeout`, `authentication`, `permission_denied`, `rate_limited`, `invalid_request`, `model_unavailable`, `provider_unavailable`, `provider`, `malformed_response`, and `empty_result` (plus `cancelled`). The action emits only the code through `bangla-romanization-error`.
 
 ### Providers and request shapes
 
 | Provider ID | Adapter/API shape                             | Authentication          | Default model             |
 | ----------- | --------------------------------------------- | ----------------------- | ------------------------- |
-| `groq`      | OpenAI-compatible `POST /chat/completions`    | `Authorization: Bearer` | `llama-3.3-70b-versatile` |
+| `groq`      | OpenAI-compatible `POST /chat/completions`    | `Authorization: Bearer` | `openai/gpt-oss-120b`     |
 | `gemini`    | `POST /v1beta/models/{model}:generateContent` | `x-goog-api-key`        | `gemini-3.1-flash-lite`   |
 | `openai`    | `POST /chat/completions`                      | `Authorization: Bearer` | `gpt-5.6-luna`            |
 
-Groq and OpenAI request `stream: false` and JSON-object output. Gemini sends the same prompt in `systemInstruction`, uses JSON MIME type plus an object schema, and reads the first candidate part. All adapters require a JSON object containing a string `romanized_text`; malformed/missing/blank output is an error.
+Groq and OpenAI request `stream: false`. Groq uses strict JSON Schema output for the GPT-OSS 20B/120B model IDs and JSON-object output for other user-entered Groq models; OpenAI uses JSON-object output. Gemini sends the same prompt in `systemInstruction`, uses JSON MIME type plus an object schema, and reads the first candidate part. All adapters require a JSON object containing a string `romanized_text`; malformed/missing/blank output is an error.
 
 ### Prompt editing contract
 
@@ -177,8 +177,9 @@ The one shared Romanization prompt is `ROMANIZATION_PROMPT_V1` near the top of `
 - Groq/OpenAI pass it as the system message.
 - Gemini passes it as `systemInstruction`.
 - The source Bangla transcript is passed separately as a user/content message.
-- If editing the prompt, preserve the instruction to return exactly one JSON object with the string field `romanized_text`; otherwise the parser returns `malformed_response` and the raw-Bangla fallback is used.
-- Do not include input text, keys, provider URLs, or raw response bodies in debug logs or UI events.
+- `romanize_bangla` validates this shared prompt before every provider request. It must remain non-empty and include the Romanization, JSON, and `romanized_text` requirements; otherwise no request is sent.
+- If editing the prompt, preserve the instruction to return exactly one JSON object with the string field `romanized_text`; otherwise the validation fails and the raw-Bangla fallback is used.
+- Do not include input text, keys, provider URLs, prompt contents, or raw response bodies in debug logs or UI events. When Debug Mode is on, safe diagnostics may include provider ID, model ID, status code, error category, request ID, and stage duration.
 
 ### Provider-scoped settings
 
@@ -195,7 +196,7 @@ The separate `bangla_romanization_enabled` boolean defaults to `true` for
 backwards compatibility. When false, provider credentials and models remain
 stored but are not read by the Bangla action.
 
-The timeout is user-configurable from 5 to 120 seconds, defaulting to 45. Models are free-form, non-empty strings: the user can enter an exact provider-specific model ID in the settings UI. Existing selected models are preserved by the default-migration helper; only absent provider entries receive defaults.
+The timeout is user-configurable from 5 to 120 seconds, defaulting to 45. Models are free-form, non-empty strings: the user can enter an exact provider-specific model ID in the settings UI. Existing selected models are preserved by the default-migration helper; only absent provider entries receive defaults. The one retired Handy Groq default, `llama-3.3-70b-versatile`, is migrated specifically to `openai/gpt-oss-120b`; other custom values are preserved.
 
 ## 7. Orchestration, paste, errors, and UI
 
@@ -253,6 +254,7 @@ Changing any Rust command signature, settings field, or exposed type requires re
 | Focus              | The overlay is non-activating, but Handy does not capture or restore the target application's focus. Cloud latency can still allow focus drift before paste. |
 | Credential storage | `SecretMap` is persisted settings data with redacted debug formatting; it is not an OS keychain implementation.                                              |
 | Retry              | No automatic provider retry/backoff or alternate-provider fallback exists.                                                                                   |
+| Latency diagnostics | When Debug Mode is on, the Bangla action emits one privacy-safe `bangla_latency` summary with capture, STT, Romanization, main-thread queue, paste-call, and total durations. |
 
 ## 10. Change guide
 
@@ -294,7 +296,7 @@ Relevant Rust tests live beside the code:
 
 - `bangla_transcription/mod.rs`: empty transcript and nine-minute cap.
 - `bangla_transcription/deepgram.rs`: PCM WAV construction, query parameters, nested response validation, status mapping, and a mock server checking token authentication plus binary upload.
-- `bangla_romanization.rs`: provider-scoped settings, error mapping, JSON result validation, and acceptance of residual Bangla characters.
+- `bangla_romanization.rs`: provider-scoped settings, shared-prompt validation/injection, Groq structured-output selection, error mapping, JSON result validation, and acceptance of residual Bangla characters.
 - `settings.rs`: Bangla binding/default migration, persisted Romanization opt-out, and provider maps without overwriting configured values.
 - `transcription_mode.rs` and `transcription_coordinator.rs`: Bangla mode identity and PTT/release behavior.
 - `actions.rs`: cancellation helper and overlay behavior.

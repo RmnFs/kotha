@@ -659,7 +659,7 @@ fn default_bangla_romanization_api_keys() -> SecretMap {
 
 fn default_bangla_romanization_models() -> HashMap<String, String> {
     HashMap::from([
-        ("groq".to_string(), "llama-3.3-70b-versatile".to_string()),
+        ("groq".to_string(), "openai/gpt-oss-120b".to_string()),
         ("gemini".to_string(), "gemini-3.1-flash-lite".to_string()),
         ("openai".to_string(), "gpt-5.6-luna".to_string()),
     ])
@@ -915,6 +915,18 @@ fn ensure_bangla_romanization_defaults(settings: &mut AppSettings) -> bool {
                 .insert(provider_id, model);
             changed = true;
         }
+    }
+    // Migrate only Handy's retired Groq default. A user-entered model must
+    // never be overwritten merely because defaults changed.
+    if settings
+        .bangla_romanization_models
+        .get("groq")
+        .is_some_and(|model| model == "llama-3.3-70b-versatile")
+    {
+        settings
+            .bangla_romanization_models
+            .insert("groq".to_string(), "openai/gpt-oss-120b".to_string());
+        changed = true;
     }
     if !matches!(
         settings.bangla_romanization_provider_id.as_str(),
@@ -1363,6 +1375,33 @@ mod tests {
         assert_eq!(
             settings.bangla_romanization_models["openai"],
             "gpt-5.6-luna"
+        );
+        assert_eq!(
+            settings.bangla_romanization_models["groq"],
+            "openai/gpt-oss-120b"
+        );
+    }
+
+    #[test]
+    fn retired_groq_default_migrates_without_overwriting_custom_models() {
+        let mut retired_default = get_default_settings();
+        retired_default
+            .bangla_romanization_models
+            .insert("groq".to_string(), "llama-3.3-70b-versatile".to_string());
+        assert!(ensure_bangla_romanization_defaults(&mut retired_default));
+        assert_eq!(
+            retired_default.bangla_romanization_models["groq"],
+            "openai/gpt-oss-120b"
+        );
+
+        let mut custom_model = get_default_settings();
+        custom_model
+            .bangla_romanization_models
+            .insert("groq".to_string(), "custom-groq-model".to_string());
+        assert!(!ensure_bangla_romanization_defaults(&mut custom_model));
+        assert_eq!(
+            custom_model.bangla_romanization_models["groq"],
+            "custom-groq-model"
         );
     }
 

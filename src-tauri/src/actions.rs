@@ -28,12 +28,17 @@ use log::{debug, error, warn};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::Manager;
 use tauri::{AppHandle, Emitter};
 
 const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
+
+/// The Bangla route has one active recording at a time (enforced by the
+/// coordinator), so one timestamp is sufficient to correlate capture start
+/// with the eventual paste or terminal outcome.
+static BANGLA_RECORDING_STARTED_AT: Lazy<Mutex<Option<Instant>>> = Lazy::new(|| Mutex::new(None));
 
 #[derive(Clone, serde::Serialize)]
 struct RecordingErrorEvent {
@@ -49,6 +54,63 @@ struct BanglaTranscriptionErrorEvent {
 #[derive(Clone, serde::Serialize)]
 struct BanglaRomanizationErrorEvent {
     error_type: String,
+}
+
+/// Privacy-safe latency breakdown for one Bangla operation. All times are
+/// local durations; this deliberately contains no transcript, audio, key,
+/// endpoint, or provider-response data.
+#[derive(Clone, Copy)]
+struct BanglaLatency {
+    enabled: bool,
+    romanization_enabled: bool,
+    recording_started_at: Option<Instant>,
+    post_stop_started_at: Instant,
+    audio_duration_ms: u128,
+    recorder_stop_ms: u128,
+    stt_ms: u128,
+    romanization_ms: u128,
+}
+
+impl BanglaLatency {
+    fn new(
+        enabled: bool,
+        romanization_enabled: bool,
+        recording_started_at: Option<Instant>,
+        post_stop_started_at: Instant,
+    ) -> Self {
+        Self {
+            enabled,
+            romanization_enabled,
+            recording_started_at,
+            post_stop_started_at,
+            audio_duration_ms: 0,
+            recorder_stop_ms: 0,
+            stt_ms: 0,
+            romanization_ms: 0,
+        }
+    }
+
+    fn log(self, outcome: &str, paste_queue_ms: u128, paste_call_ms: u128) {
+        if !self.enabled {
+            return;
+        }
+
+        debug!(
+            "bangla_latency outcome={} romanization_enabled={} recording_to_terminal_ms={} post_stop_total_ms={} audio_duration_ms={} recorder_stop_ms={} stt_ms={} romanization_ms={} paste_queue_ms={} paste_call_ms={}",
+            outcome,
+            self.romanization_enabled,
+            self.recording_started_at
+                .map(|started| started.elapsed().as_millis())
+                .unwrap_or(0),
+            self.post_stop_started_at.elapsed().as_millis(),
+            self.audio_duration_ms,
+            self.recorder_stop_ms,
+            self.stt_ms,
+            self.romanization_ms,
+            paste_queue_ms,
+            paste_call_ms,
+        );
+    }
 }
 
 /// Drop guard that notifies the [`TranscriptionCoordinator`] when the
@@ -159,6 +221,9 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
     change_tray_icon(app, TrayIconState::Recording);
 
     let settings = get_settings(app);
+    // Clear a timestamp from a cancelled or failed previous attempt before
+    // this recording has a chance to become active.
+    *BANGLA_RECORDING_STARTED_AT.lock().unwrap() = None;
     let is_always_on = settings.always_on_microphone;
     let vad_policy = if settings.vad_enabled {
         VadPolicy::Offline
@@ -205,6 +270,9 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
     }
 
     if recording_error.is_none() {
+        if settings.debug_mode {
+            *BANGLA_RECORDING_STARTED_AT.lock().unwrap() = Some(Instant::now());
+        }
         shortcut::register_cancel_shortcut(app);
     } else {
         utils::hide_recording_overlay(app);
@@ -234,6 +302,7 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
 }
 
 fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
+    let post_stop_started_at = Instant::now();
     shortcut::unregister_cancel_shortcut(app);
 
     debug!(
@@ -252,19 +321,35 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
 
     let binding_id = binding_id.to_string();
     let cancel_generation = rm.cancel_generation();
+    let settings = get_settings(app);
+    let recording_started_at = BANGLA_RECORDING_STARTED_AT.lock().unwrap().take();
 
     tauri::async_runtime::spawn(async move {
         let _guard = FinishGuard(ah.clone());
+        let mut latency = BanglaLatency::new(
+            settings.debug_mode,
+            should_romanize_bangla(&settings),
+            recording_started_at,
+            post_stop_started_at,
+        );
 
+        let recorder_stop_started_at = Instant::now();
         let Some(samples) = rm.stop_recording(&binding_id, cancel_generation) else {
             debug!("Bangla recording ended without samples");
+            latency.recorder_stop_ms = recorder_stop_started_at.elapsed().as_millis();
+            latency.log("no_audio", 0, 0);
             utils::hide_recording_overlay(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
             return;
         };
+        latency.recorder_stop_ms = recorder_stop_started_at.elapsed().as_millis();
+        // The Bangla recorder is always 16 kHz mono. This duration is useful
+        // context for comparing cloud stage latency across recordings.
+        latency.audio_duration_ms = samples.len() as u128 * 1_000 / 16_000;
 
         if rm.was_cancelled_since(cancel_generation) {
             debug!("Bangla recording was cancelled after capture closed");
+            latency.log("cancelled_after_capture", 0, 0);
             utils::hide_recording_overlay(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
             return;
@@ -274,12 +359,12 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
             Ok(audio) => audio,
             Err(error) => {
                 emit_bangla_transcription_error(&ah, error);
+                latency.log("invalid_audio", 0, 0);
                 utils::hide_recording_overlay(&ah);
                 change_tray_icon(&ah, TrayIconState::Idle);
                 return;
             }
         };
-        let settings = get_settings(&ah);
         let rm_for_cancel = Arc::clone(&rm);
         let cancellation =
             CancellationContext::new(move || rm_for_cancel.was_cancelled_since(cancel_generation));
@@ -287,6 +372,7 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
         // `complete_unless_cancelled` drops the HTTP future at cancellation,
         // aborting the upload/request; the generation checks below also block a
         // late response from ever reaching the paste layer.
+        let stt_started_at = Instant::now();
         let Some(result) = complete_unless_cancelled(
             transcribe_bangla(audio, &settings, cancellation.clone()),
             || rm.was_cancelled_since(cancel_generation),
@@ -294,10 +380,13 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
         .await
         else {
             debug!("Bangla cloud request cancelled");
+            latency.stt_ms = stt_started_at.elapsed().as_millis();
+            latency.log("cancelled_during_stt", 0, 0);
             utils::hide_recording_overlay(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
             return;
         };
+        latency.stt_ms = stt_started_at.elapsed().as_millis();
 
         match result {
             Ok(transcript) if !rm.was_cancelled_since(cancel_generation) => {
@@ -307,7 +396,14 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
                 // cancellation-safe paste contract; it simply avoids sending
                 // the verified Bangla transcript to an LLM provider.
                 if !should_romanize_bangla(&settings) {
-                    schedule_bangla_paste(&ah, Arc::clone(&rm), cancel_generation, raw_bangla);
+                    schedule_bangla_paste(
+                        &ah,
+                        Arc::clone(&rm),
+                        cancel_generation,
+                        raw_bangla,
+                        latency,
+                        "pasted_raw",
+                    );
                     return;
                 }
 
@@ -320,10 +416,18 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
                     Ok(input) => input,
                     Err(error) => {
                         emit_bangla_romanization_error(&ah, error);
-                        schedule_bangla_paste(&ah, Arc::clone(&rm), cancel_generation, raw_bangla);
+                        schedule_bangla_paste(
+                            &ah,
+                            Arc::clone(&rm),
+                            cancel_generation,
+                            raw_bangla,
+                            latency,
+                            "pasted_raw_after_romanization_input_error",
+                        );
                         return;
                     }
                 };
+                let romanization_started_at = Instant::now();
                 let Some(romanization) = complete_unless_cancelled(
                     romanize_bangla(input, &settings, cancellation),
                     || rm.was_cancelled_since(cancel_generation),
@@ -331,10 +435,13 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
                 .await
                 else {
                     debug!("Bangla Romanization request cancelled");
+                    latency.romanization_ms = romanization_started_at.elapsed().as_millis();
+                    latency.log("cancelled_during_romanization", 0, 0);
                     utils::hide_recording_overlay(&ah);
                     change_tray_icon(&ah, TrayIconState::Idle);
                     return;
                 };
+                latency.romanization_ms = romanization_started_at.elapsed().as_millis();
 
                 match romanization {
                     Ok(result) if !rm.was_cancelled_since(cancel_generation) => {
@@ -343,26 +450,38 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
                             Arc::clone(&rm),
                             cancel_generation,
                             result.romanized_text,
+                            latency,
+                            "pasted_romanized",
                         );
                     }
                     Ok(_) | Err(RomanizationError::Cancelled) => {
                         debug!("Bangla Romanization result suppressed after cancellation");
+                        latency.log("cancelled_after_romanization", 0, 0);
                         utils::hide_recording_overlay(&ah);
                         change_tray_icon(&ah, TrayIconState::Idle);
                     }
                     Err(error) => {
                         emit_bangla_romanization_error(&ah, error);
-                        schedule_bangla_paste(&ah, Arc::clone(&rm), cancel_generation, raw_bangla);
+                        schedule_bangla_paste(
+                            &ah,
+                            Arc::clone(&rm),
+                            cancel_generation,
+                            raw_bangla,
+                            latency,
+                            "pasted_raw_after_romanization_error",
+                        );
                     }
                 }
             }
             Ok(_) | Err(CloudTranscriptionError::Cancelled) => {
                 debug!("Bangla cloud result suppressed after cancellation");
+                latency.log("cancelled_after_stt", 0, 0);
                 utils::hide_recording_overlay(&ah);
                 change_tray_icon(&ah, TrayIconState::Idle);
             }
             Err(error) => {
                 emit_bangla_transcription_error(&ah, error);
+                latency.log("stt_failed", 0, 0);
                 utils::hide_recording_overlay(&ah);
                 change_tray_icon(&ah, TrayIconState::Idle);
             }
@@ -379,21 +498,44 @@ fn schedule_bangla_paste(
     recording_manager: Arc<AudioRecordingManager>,
     cancel_generation: u64,
     text: String,
+    latency: BanglaLatency,
+    success_outcome: &'static str,
 ) {
     let app_for_paste = app.clone();
     let app_for_schedule_failure = app.clone();
+    let paste_scheduled_at = Instant::now();
+    let latency_for_paste = latency;
     if let Err(error) = app.run_on_main_thread(move || {
         if recording_manager.was_cancelled_since(cancel_generation) {
+            latency_for_paste.log(
+                "cancelled_before_paste",
+                paste_scheduled_at.elapsed().as_millis(),
+                0,
+            );
             return;
         }
-        if let Err(error) = utils::paste(text, app_for_paste.clone()) {
-            error!("Failed to paste Bangla result: {error}");
-            let _ = app_for_paste.emit("paste-error", ());
+        let paste_started_at = Instant::now();
+        match utils::paste(text, app_for_paste.clone()) {
+            Ok(()) => latency_for_paste.log(
+                success_outcome,
+                paste_scheduled_at.elapsed().as_millis(),
+                paste_started_at.elapsed().as_millis(),
+            ),
+            Err(error) => {
+                error!("Failed to paste Bangla result: {error}");
+                latency_for_paste.log(
+                    "paste_failed",
+                    paste_scheduled_at.elapsed().as_millis(),
+                    paste_started_at.elapsed().as_millis(),
+                );
+                let _ = app_for_paste.emit("paste-error", ());
+            }
         }
         utils::hide_recording_overlay(&app_for_paste);
         change_tray_icon(&app_for_paste, TrayIconState::Idle);
     }) {
         error!("Failed to schedule Bangla paste: {error}");
+        latency.log("paste_schedule_failed", 0, 0);
         utils::hide_recording_overlay(&app_for_schedule_failure);
         change_tray_icon(&app_for_schedule_failure, TrayIconState::Idle);
     }
