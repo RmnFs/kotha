@@ -1067,7 +1067,7 @@ selected_channel?: number | null; clamshell_microphone?: string | null; selected
  * Cloud STT configuration for the Bangla shortcut. It is intentionally
  * separate from local model and English post-processing settings.
  */
-bangla_stt_provider_id?: string; bangla_stt_endpoint?: string; bangla_stt_api_keys?: SecretMap; bangla_stt_models?: Partial<{ [key in string]: string }>; bangla_stt_mode?: BanglaSttMode;
+bangla_stt_provider_id?: string; bangla_stt_endpoint?: string; bangla_stt_api_keys?: SecretMap; bangla_stt_models?: Partial<{ [key in string]: string }>; bangla_stt_mode?: BanglaSttMode; 
 /**
  * Optional LLM Romanization configuration for the Bangla shortcut. This
  * remains separate from both Deepgram STT and optional English polishing.
