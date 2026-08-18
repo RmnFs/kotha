@@ -306,6 +306,17 @@ pub enum OrtAcceleratorSetting {
     Rocm,
 }
 
+/// Transport used by the dedicated Bangla cloud-transcription route.
+/// Batch remains the default so existing users keep the current privacy
+/// contract: audio stays local until the recording is stopped.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum BanglaSttMode {
+    #[default]
+    Batch,
+    Streaming,
+}
+
 #[derive(Clone, Serialize, Deserialize, Type)]
 #[serde(transparent)]
 pub(crate) struct SecretMap(HashMap<String, String>);
@@ -442,6 +453,8 @@ pub struct AppSettings {
     pub bangla_stt_api_keys: SecretMap,
     #[serde(default = "default_bangla_stt_models")]
     pub bangla_stt_models: HashMap<String, String>,
+    #[serde(default)]
+    pub bangla_stt_mode: BanglaSttMode,
     /// Optional LLM Romanization configuration for the Bangla shortcut. This
     /// remains separate from both Deepgram STT and optional English polishing.
     /// When disabled, a verified Deepgram transcript is pasted directly.
@@ -1060,6 +1073,7 @@ pub fn get_default_settings() -> AppSettings {
         bangla_stt_endpoint: default_bangla_stt_endpoint(),
         bangla_stt_api_keys: default_bangla_stt_api_keys(),
         bangla_stt_models: default_bangla_stt_models(),
+        bangla_stt_mode: BanglaSttMode::default(),
         bangla_romanization_enabled: default_bangla_romanization_enabled(),
         bangla_romanization_provider_id: default_bangla_romanization_provider_id(),
         bangla_romanization_api_keys: default_bangla_romanization_api_keys(),
@@ -1353,6 +1367,20 @@ mod tests {
         );
         assert_eq!(settings.bangla_stt_models["deepgram"], "nova-3");
         assert!(settings.bangla_stt_api_keys["deepgram"].is_empty());
+        assert_eq!(settings.bangla_stt_mode, BanglaSttMode::Batch);
+    }
+
+    #[test]
+    fn bangla_stt_mode_defaults_to_batch_and_preserves_streaming() {
+        let legacy: AppSettings = serde_json::from_value(serde_json::json!({}))
+            .expect("a legacy store should receive the safe batch default");
+        assert_eq!(legacy.bangla_stt_mode, BanglaSttMode::Batch);
+
+        let streaming: AppSettings = serde_json::from_value(serde_json::json!({
+            "bangla_stt_mode": "streaming"
+        }))
+        .expect("the streaming selection should deserialize");
+        assert_eq!(streaming.bangla_stt_mode, BanglaSttMode::Streaming);
     }
 
     #[test]

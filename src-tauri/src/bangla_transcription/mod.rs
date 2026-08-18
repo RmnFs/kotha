@@ -1,4 +1,4 @@
-//! Provider-neutral batch transcription for the Bangla shortcut.
+//! Provider-neutral transcription contracts for the Bangla shortcut.
 //!
 //! The recording/action layer deals only in [`RecordedAudio`] and
 //! [`BanglaTranscript`]. Provider wire formats, authentication, response
@@ -6,15 +6,19 @@
 //! This keeps local English transcription fully separate and makes a future
 //! provider addition a contained change:
 //!
-//! 1. Add an adapter module implementing [`BanglaTranscriptionProvider`].
-//! 2. Register it in [`transcribe_bangla`].
-//! 3. Add its defaults and UI metadata in `settings.rs`.
-//! 4. Add mock-server coverage for its request and response contract.
+//! The batch provider boundary lives here; the optional live route is owned by
+//! [`streaming`] and its provider-specific WebSocket adapter. Both routes
+//! produce the same validated [`BanglaTranscript`] before the action can invoke
+//! Romanization or paste anything.
 //!
 //! Do not log audio samples, transcript text, API keys, or configured endpoint
 //! URLs from this module or an adapter. Those values are private user data.
 
 mod deepgram;
+mod deepgram_streaming;
+mod streaming;
+
+pub(crate) use streaming::BanglaStreamingManager;
 
 use crate::audio_toolkit::constants::WHISPER_SAMPLE_RATE;
 use crate::settings::AppSettings;
@@ -24,7 +28,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 const MAX_BANGLA_AUDIO_SECONDS: usize = 9 * 60;
-const MAX_BANGLA_AUDIO_SAMPLES: usize = WHISPER_SAMPLE_RATE as usize * MAX_BANGLA_AUDIO_SECONDS;
+pub(super) const MAX_BANGLA_AUDIO_SAMPLES: usize =
+    WHISPER_SAMPLE_RATE as usize * MAX_BANGLA_AUDIO_SECONDS;
 
 /// A completed capture ready for a batch provider. The recorder guarantees
 /// 16 kHz mono samples; the provider owns its transport encoding.

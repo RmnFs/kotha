@@ -262,6 +262,18 @@ async changeBanglaSttModelSetting(model: string) : Promise<Result<null, string>>
 }
 },
 /**
+ * Select whether the Bangla shortcut uploads a completed recording or sends
+ * recorder audio frames to Deepgram while the recording is active.
+ */
+async changeBanglaSttModeSetting(mode: BanglaSttMode) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_bangla_stt_mode_setting", { mode }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Enables or disables the optional Romanization stage for the Bangla
  * shortcut. This does not alter the Bangla shortcut or Deepgram settings.
  */
@@ -1055,7 +1067,7 @@ selected_channel?: number | null; clamshell_microphone?: string | null; selected
  * Cloud STT configuration for the Bangla shortcut. It is intentionally
  * separate from local model and English post-processing settings.
  */
-bangla_stt_provider_id?: string; bangla_stt_endpoint?: string; bangla_stt_api_keys?: SecretMap; bangla_stt_models?: Partial<{ [key in string]: string }>; 
+bangla_stt_provider_id?: string; bangla_stt_endpoint?: string; bangla_stt_api_keys?: SecretMap; bangla_stt_models?: Partial<{ [key in string]: string }>; bangla_stt_mode?: BanglaSttMode;
 /**
  * Optional LLM Romanization configuration for the Bangla shortcut. This
  * remains separate from both Deepgram STT and optional English polishing.
@@ -1077,6 +1089,12 @@ overlay_style?: OverlayStyle }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { transcribe: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }
+/**
+ * Transport used by the dedicated Bangla cloud-transcription route.
+ * Batch remains the default so existing users keep the current privacy
+ * contract: audio stays local until the recording is stopped.
+ */
+export type BanglaSttMode = "batch" | "streaming"
 export type BindingResponse = { success: boolean; binding: ShortcutBinding | null; error: string | null }
 export type ClipboardHandling = "dont_modify" | "copy_to_clipboard"
 export type CustomSounds = { start: boolean; stop: boolean }

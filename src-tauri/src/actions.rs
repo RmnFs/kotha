@@ -4,14 +4,17 @@ use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, S
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error, VadPolicy};
 use crate::bangla_romanization::{romanize_bangla, RomanizationError, RomanizationInput};
 use crate::bangla_transcription::{
-    transcribe_bangla, CancellationContext, CloudTranscriptionError, RecordedAudio,
+    transcribe_bangla, BanglaStreamingManager, CancellationContext, CloudTranscriptionError,
+    RecordedAudio,
 };
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::StreamWorkKind;
 use crate::managers::transcription::TranscriptionManager;
-use crate::settings::{get_settings, AppSettings, OverlayStyle, APPLE_INTELLIGENCE_PROVIDER_ID};
+use crate::settings::{
+    get_settings, AppSettings, BanglaSttMode, OverlayStyle, APPLE_INTELLIGENCE_PROVIDER_ID,
+};
 use crate::shortcut;
 use crate::transcription_mode::{
     TranscriptionMode, TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID, TRANSCRIBE_BINDING_ID,
@@ -63,6 +66,7 @@ struct BanglaRomanizationErrorEvent {
 struct BanglaLatency {
     enabled: bool,
     romanization_enabled: bool,
+    stt_transport: &'static str,
     recording_started_at: Option<Instant>,
     post_stop_started_at: Instant,
     audio_duration_ms: u128,
@@ -75,12 +79,14 @@ impl BanglaLatency {
     fn new(
         enabled: bool,
         romanization_enabled: bool,
+        stt_transport: &'static str,
         recording_started_at: Option<Instant>,
         post_stop_started_at: Instant,
     ) -> Self {
         Self {
             enabled,
             romanization_enabled,
+            stt_transport,
             recording_started_at,
             post_stop_started_at,
             audio_duration_ms: 0,
@@ -96,8 +102,9 @@ impl BanglaLatency {
         }
 
         debug!(
-            "bangla_latency outcome={} romanization_enabled={} recording_to_terminal_ms={} post_stop_total_ms={} audio_duration_ms={} recorder_stop_ms={} stt_ms={} romanization_ms={} paste_queue_ms={} paste_call_ms={}",
+            "bangla_latency outcome={} stt_transport={} romanization_enabled={} recording_to_terminal_ms={} post_stop_total_ms={} audio_duration_ms={} recorder_stop_ms={} stt_ms={} romanization_ms={} paste_queue_ms={} paste_call_ms={}",
             outcome,
+            self.stt_transport,
             self.romanization_enabled,
             self.recording_started_at
                 .map(|started| started.elapsed().as_millis())
@@ -196,13 +203,13 @@ where
     }
 }
 
-/// Bangla capture shares the ordinary recorder/VAD lifecycle but intentionally
-/// bypasses local model loading and streaming. Batch cloud STT begins only
-/// after this recording is stopped.
+/// Bangla capture shares the ordinary recorder/VAD lifecycle and bypasses local
+/// model inference. The persisted mode decides whether Deepgram receives the
+/// recorder frames during capture or a completed WAV after release.
 fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
     let start_time = Instant::now();
     debug!(
-        "Bangla batch transcription start called for binding: {}",
+        "Bangla transcription start called for binding: {}",
         binding_id
     );
 
@@ -224,15 +231,26 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
     // Clear a timestamp from a cancelled or failed previous attempt before
     // this recording has a chance to become active.
     *BANGLA_RECORDING_STARTED_AT.lock().unwrap() = None;
-    let is_always_on = settings.always_on_microphone;
-    let vad_policy = if settings.vad_enabled {
-        VadPolicy::Offline
+    let bangla_streaming = app.state::<Arc<BanglaStreamingManager>>();
+    let use_streaming = settings.bangla_stt_mode == BanglaSttMode::Streaming;
+    if use_streaming {
+        // Open the bounded route before capture begins. Frames can queue while
+        // the WebSocket handshake completes without blocking the recorder.
+        bangla_streaming.start(&settings);
     } else {
+        bangla_streaming.cancel_active();
+    }
+    let is_always_on = settings.always_on_microphone;
+    let vad_policy = if !settings.vad_enabled {
         VadPolicy::Disabled
+    } else if use_streaming {
+        VadPolicy::Streaming
+    } else {
+        VadPolicy::Offline
     };
 
-    // Bangla streaming is intentionally out of scope: use the same compact
-    // recording overlay as a non-streaming local model.
+    // Bangla does not expose provider partials in this checkpoint, so both
+    // cloud modes use the existing compact recording overlay.
     match settings.overlay_style {
         OverlayStyle::Live | OverlayStyle::Minimal => show_recording_overlay(app),
         OverlayStyle::None => {}
@@ -275,6 +293,7 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
         }
         shortcut::register_cancel_shortcut(app);
     } else {
+        bangla_streaming.cancel_active();
         utils::hide_recording_overlay(app);
         change_tray_icon(app, TrayIconState::Idle);
         if let Some(err) = recording_error {
@@ -296,8 +315,9 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
     }
 
     debug!(
-        "Bangla batch transcription start completed in {:?}",
-        start_time.elapsed()
+        "Bangla transcription start completed in {:?} (transport={})",
+        start_time.elapsed(),
+        if use_streaming { "streaming" } else { "batch" }
     );
 }
 
@@ -306,14 +326,15 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
     shortcut::unregister_cancel_shortcut(app);
 
     debug!(
-        "Bangla batch transcription stop called for binding: {}",
+        "Bangla transcription stop called for binding: {}",
         binding_id
     );
 
     let ah = app.clone();
     let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
+    let bangla_streaming = Arc::clone(&app.state::<Arc<BanglaStreamingManager>>());
 
-    // Keep the normal working state visible for the batch cloud request.
+    // Keep the normal working state visible while cloud transcription finishes.
     change_tray_icon(app, TrayIconState::Transcribing);
     show_transcribing_overlay(app);
     rm.remove_mute();
@@ -329,6 +350,11 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
         let mut latency = BanglaLatency::new(
             settings.debug_mode,
             should_romanize_bangla(&settings),
+            if settings.bangla_stt_mode == BanglaSttMode::Streaming {
+                "streaming"
+            } else {
+                "batch"
+            },
             recording_started_at,
             post_stop_started_at,
         );
@@ -338,6 +364,7 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
             debug!("Bangla recording ended without samples");
             latency.recorder_stop_ms = recorder_stop_started_at.elapsed().as_millis();
             latency.log("no_audio", 0, 0);
+            bangla_streaming.cancel_active();
             utils::hide_recording_overlay(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
             return;
@@ -350,6 +377,7 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
         if rm.was_cancelled_since(cancel_generation) {
             debug!("Bangla recording was cancelled after capture closed");
             latency.log("cancelled_after_capture", 0, 0);
+            bangla_streaming.cancel_active();
             utils::hide_recording_overlay(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
             return;
@@ -358,6 +386,7 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
         let audio = match RecordedAudio::from_recorder(samples) {
             Ok(audio) => audio,
             Err(error) => {
+                bangla_streaming.cancel_active();
                 emit_bangla_transcription_error(&ah, error);
                 latency.log("invalid_audio", 0, 0);
                 utils::hide_recording_overlay(&ah);
@@ -368,25 +397,73 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
         let rm_for_cancel = Arc::clone(&rm);
         let cancellation =
             CancellationContext::new(move || rm_for_cancel.was_cancelled_since(cancel_generation));
-
-        // `complete_unless_cancelled` drops the HTTP future at cancellation,
-        // aborting the upload/request; the generation checks below also block a
-        // late response from ever reaching the paste layer.
         let stt_started_at = Instant::now();
-        let Some(result) = complete_unless_cancelled(
-            transcribe_bangla(audio, &settings, cancellation.clone()),
-            || rm.was_cancelled_since(cancel_generation),
-        )
+
+        // Stopping the recorder drains its resampler and invokes the audio
+        // callback for the final frames before returning. The streaming
+        // manager therefore queues CloseStream strictly after all captured
+        // audio. Batch mode returns `None` here.
+        let Some(streaming_result) = complete_unless_cancelled(bangla_streaming.finish(), || {
+            rm.was_cancelled_since(cancel_generation)
+        })
         .await
         else {
-            debug!("Bangla cloud request cancelled");
+            debug!("Bangla streaming finalization cancelled");
+            bangla_streaming.cancel_active();
             latency.stt_ms = stt_started_at.elapsed().as_millis();
             latency.log("cancelled_during_stt", 0, 0);
             utils::hide_recording_overlay(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
             return;
         };
+        let (result, transport) = match streaming_result {
+            Some(Ok(transcript)) => {
+                debug!("Bangla streaming transcription finalized");
+                (Ok(transcript), "streaming")
+            }
+            Some(Err(failure)) if !failure.fallback_allowed => (Err(failure.error), "streaming"),
+            Some(Err(failure)) => {
+                debug!(
+                    "Bangla streaming failed with {}; using one batch fallback",
+                    failure.error.event_code()
+                );
+                let Some(batch_result) = complete_unless_cancelled(
+                    transcribe_bangla(audio, &settings, cancellation.clone()),
+                    || rm.was_cancelled_since(cancel_generation),
+                )
+                .await
+                else {
+                    debug!("Bangla batch fallback cancelled");
+                    latency.stt_ms = stt_started_at.elapsed().as_millis();
+                    latency.stt_transport = "streaming_batch_fallback";
+                    latency.log("cancelled_during_stt", 0, 0);
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
+                    return;
+                };
+                (batch_result, "streaming_batch_fallback")
+            }
+            None => {
+                // Current privacy-preserving mode: the complete in-memory WAV
+                // is uploaded only after the recording has stopped.
+                let Some(batch_result) = complete_unless_cancelled(
+                    transcribe_bangla(audio, &settings, cancellation.clone()),
+                    || rm.was_cancelled_since(cancel_generation),
+                )
+                .await
+                else {
+                    debug!("Bangla batch request cancelled");
+                    latency.stt_ms = stt_started_at.elapsed().as_millis();
+                    latency.log("cancelled_during_stt", 0, 0);
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
+                    return;
+                };
+                (batch_result, "batch")
+            }
+        };
         latency.stt_ms = stt_started_at.elapsed().as_millis();
+        latency.stt_transport = transport;
 
         match result {
             Ok(transcript) if !rm.was_cancelled_since(cancel_generation) => {

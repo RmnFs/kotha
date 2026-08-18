@@ -33,6 +33,7 @@ pub use cli::CliArgs;
 use specta_typescript::{BigIntExportBehavior, Typescript};
 use tauri_specta::{collect_commands, collect_events, Builder};
 
+use bangla_transcription::BanglaStreamingManager;
 use env_filter::Builder as EnvFilterBuilder;
 use managers::audio::AudioRecordingManager;
 use managers::history::HistoryManager;
@@ -164,9 +165,14 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         TranscriptionManager::new(app_handle, model_manager.clone())
             .expect("Failed to initialize transcription manager"),
     );
+    let bangla_streaming_manager = Arc::new(BanglaStreamingManager::new());
     let recording_manager = Arc::new(
-        AudioRecordingManager::new(app_handle, transcription_manager.stream_router())
-            .expect("Failed to initialize recording manager"),
+        AudioRecordingManager::new(
+            app_handle,
+            transcription_manager.stream_router(),
+            bangla_streaming_manager.clone(),
+        )
+        .expect("Failed to initialize recording manager"),
     );
     let history_manager =
         Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));
@@ -182,6 +188,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(recording_manager.clone());
     app_handle.manage(model_manager.clone());
     app_handle.manage(transcription_manager.clone());
+    app_handle.manage(bangla_streaming_manager);
     app_handle.manage(history_manager.clone());
     app_handle.manage(tray::CurrentTrayIconState::new());
 
@@ -636,6 +643,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_bangla_stt_endpoint_setting,
             shortcut::change_bangla_stt_api_key_setting,
             shortcut::change_bangla_stt_model_setting,
+            shortcut::change_bangla_stt_mode_setting,
             shortcut::change_bangla_romanization_enabled_setting,
             shortcut::change_bangla_romanization_provider_setting,
             shortcut::change_bangla_romanization_api_key_setting,

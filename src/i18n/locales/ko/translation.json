@@ -619,9 +619,15 @@
       "description": "Cloud service for the Bangla shortcut.",
       "name": "Deepgram"
     },
+    "mode": {
+      "title": "Audio processing",
+      "description": "Choose when your Bangla recording is sent to Deepgram.",
+      "batch": "Send after recording ends",
+      "streaming": "Process while recording"
+    },
     "endpoint": {
       "title": "Endpoint",
-      "description": "Deepgram-compatible batch transcription endpoint."
+      "description": "Deepgram-compatible transcription endpoint used by both audio processing modes."
     },
     "model": { "title": "Model", "description": "Deepgram model identifier." },
     "apiKey": {
@@ -677,7 +683,9 @@
     },
     "privacy": {
       "title": "Cloud audio disclosure",
-      "description": "Bangla recordings are sent only after recording stops. Local English remains offline."
+      "description": "Bangla audio is sent to the configured cloud provider. Local English remains offline.",
+      "batchDescription": "In batch mode, Bangla audio stays on this device until recording stops, then the complete recording is sent to Deepgram. Local English remains offline.",
+      "streamingDescription": "In streaming mode, Bangla audio is sent to Deepgram while you speak. The complete local recording is retained temporarily so Handy can retry once in batch mode after a recoverable streaming failure. Local English remains offline."
     },
     "errors": {
       "title": "Bangla Transcription Failed",
@@ -686,7 +694,7 @@
       "unsupported_provider": "The configured Bangla transcription provider is not available.",
       "invalid_configuration": "Check the Bangla transcription endpoint configuration.",
       "empty_audio": "No speech audio was captured.",
-      "audio_too_long": "The recording is too long for Bangla batch transcription.",
+      "audio_too_long": "The recording is too long for Bangla transcription.",
       "offline": "Could not reach the Bangla transcription service. Check your connection.",
       "timeout": "Bangla transcription timed out. Please try again.",
       "authentication": "Deepgram rejected the API key.",

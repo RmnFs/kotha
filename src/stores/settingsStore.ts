@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import type {
   AppSettings as Settings,
   AudioDevice,
+  BanglaSttMode,
   TranscribeAcceleratorSetting,
   OrtAcceleratorSetting,
 } from "@/bindings";
@@ -155,6 +156,8 @@ const settingUpdaters: {
       throw new Error(result.error);
     }
   },
+  bangla_stt_mode: (value) =>
+    commands.changeBanglaSttModeSetting(value as BanglaSttMode),
   post_process_selected_prompt_id: (value) =>
     commands.setPostProcessSelectedPrompt(value as string),
   mute_while_recording: (value) =>

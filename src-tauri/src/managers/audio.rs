@@ -6,6 +6,7 @@ use crate::audio_toolkit::{
     },
     AudioRecorder, SileroVad, VadPolicy,
 };
+use crate::bangla_transcription::BanglaStreamingManager;
 use crate::helpers::clamshell;
 use crate::managers::transcription::StreamRouter;
 use crate::settings::{get_settings, AppSettings};
@@ -264,6 +265,7 @@ fn create_audio_recorder(
     app_handle: &tauri::AppHandle,
     selected_channel: Option<u16>,
     stream_router: Arc<StreamRouter>,
+    bangla_streaming: Arc<BanglaStreamingManager>,
 ) -> Result<AudioRecorder, anyhow::Error> {
     // A single Silero engine covers both the offline and streaming policies (never
     // active at once within a recording), so the recorder reconfigures its
@@ -296,8 +298,10 @@ fn create_audio_recorder(
         })
         .with_audio_callback({
             let router = stream_router;
+            let bangla_streaming = bangla_streaming;
             move |frame| {
                 router.feed(frame);
+                bangla_streaming.feed(frame);
             }
         });
 
@@ -321,6 +325,7 @@ pub struct AudioRecordingManager {
     close_generation: Arc<AtomicU64>,
     cancel_generation: Arc<AtomicU64>,
     stream_router: Arc<StreamRouter>,
+    bangla_streaming: Arc<BanglaStreamingManager>,
     /// Lock-free mirror of "is the state in {Recording, Stopping}",
     /// maintained by `set_state()`. The hot-path `is_recording()` reads THIS
     /// instead of the std `state` mutex, so a UI poll can no longer deadlock
@@ -342,6 +347,7 @@ impl AudioRecordingManager {
     pub fn new(
         app: &tauri::AppHandle,
         stream_router: Arc<StreamRouter>,
+        bangla_streaming: Arc<BanglaStreamingManager>,
     ) -> Result<Self, anyhow::Error> {
         let settings = get_settings(app);
         let mode = if settings.always_on_microphone {
@@ -362,6 +368,7 @@ impl AudioRecordingManager {
             close_generation: Arc::new(AtomicU64::new(0)),
             cancel_generation: Arc::new(AtomicU64::new(0)),
             stream_router,
+            bangla_streaming,
             recording_active: Arc::new(AtomicBool::new(false)),
             cached_device: Arc::new(Mutex::new(None)),
         };
@@ -523,6 +530,7 @@ impl AudioRecordingManager {
                 &self.app_handle,
                 settings.selected_channel,
                 Arc::clone(&self.stream_router),
+                Arc::clone(&self.bangla_streaming),
             )?);
         }
         Ok(())

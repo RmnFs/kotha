@@ -619,9 +619,15 @@
       "description": "The cloud service used only for the Bangla shortcut.",
       "name": "Deepgram"
     },
+    "mode": {
+      "title": "Audio processing",
+      "description": "Choose when the Bangla recording is sent to Deepgram.",
+      "batch": "Send after recording ends",
+      "streaming": "Process while recording"
+    },
     "endpoint": {
       "title": "Endpoint",
-      "description": "Deepgram-compatible batch transcription endpoint."
+      "description": "Deepgram-compatible transcription endpoint used by both audio processing modes."
     },
     "model": {
       "title": "Model",
@@ -680,7 +686,9 @@
     },
     "privacy": {
       "title": "Cloud audio disclosure",
-      "description": "Bangla recordings are sent to the configured provider only after you stop recording. Local English transcription remains offline."
+      "description": "Bangla recordings are sent to the configured provider only after you stop recording. Local English transcription remains offline.",
+      "batchDescription": "In batch mode, Bangla audio stays on this device until you stop recording, then the completed recording is sent to Deepgram. Local transcription shortcuts remain offline.",
+      "streamingDescription": "In streaming mode, Bangla audio is sent to Deepgram while you speak. If the live connection fails, Handy may resend the completed recording once using batch transcription. Local transcription shortcuts remain offline."
     },
     "errors": {
       "title": "Bangla Transcription Failed",
@@ -689,7 +697,7 @@
       "unsupported_provider": "The configured Bangla transcription provider is not available.",
       "invalid_configuration": "Check the Bangla transcription endpoint configuration.",
       "empty_audio": "No speech audio was captured.",
-      "audio_too_long": "The recording is too long for Bangla batch transcription.",
+      "audio_too_long": "The recording is too long for Bangla transcription.",
       "offline": "Could not reach the Bangla transcription service. Check your connection.",
       "timeout": "Bangla transcription timed out. Please try again.",
       "authentication": "Deepgram rejected the API key.",

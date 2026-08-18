@@ -1069,6 +1069,20 @@ pub fn change_bangla_stt_model_setting(app: AppHandle, model: String) -> Result<
     Ok(())
 }
 
+/// Select whether the Bangla shortcut uploads a completed recording or sends
+/// recorder audio frames to Deepgram while the recording is active.
+#[tauri::command]
+#[specta::specta]
+pub fn change_bangla_stt_mode_setting(
+    app: AppHandle,
+    mode: settings::BanglaSttMode,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.bangla_stt_mode = mode;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 /// Enables or disables the optional Romanization stage for the Bangla
 /// shortcut. This does not alter the Bangla shortcut or Deepgram settings.
 #[tauri::command]

@@ -13,10 +13,9 @@ import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
 import { useSettings } from "../../../hooks/useSettings";
 
 /**
- * Checkpoint 2 configuration is deliberately independent from both selected
- * local models and English post-processing. The backend provider boundary
- * documents the small set of changes needed when another STT provider is
- * added; this UI then exposes its endpoint, model, and user-owned key.
+ * Bangla cloud transcription is deliberately independent from both selected
+ * local models and English post-processing. This UI owns the batch/streaming
+ * transport selection together with the endpoint, model, and user-owned key.
  */
 export const BanglaSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -26,6 +25,7 @@ export const BanglaSettings: React.FC = () => {
   const apiKey = settings?.bangla_stt_api_keys?.[providerId] ?? "";
   const model = settings?.bangla_stt_models?.[providerId] ?? "nova-3";
   const endpoint = settings?.bangla_stt_endpoint ?? "";
+  const sttMode = getSetting("bangla_stt_mode") ?? "batch";
   const romanizationProviderId =
     settings?.bangla_romanization_provider_id ?? "gemini";
   const romanizationApiKey =
@@ -86,6 +86,36 @@ export const BanglaSettings: React.FC = () => {
           <span className="text-sm font-medium">
             {t("bangla.provider.name")}
           </span>
+        </SettingContainer>
+
+        <SettingContainer
+          title={t("bangla.mode.title")}
+          description={t("bangla.mode.description")}
+          descriptionMode="tooltip"
+          layout="horizontal"
+          grouped={true}
+        >
+          <Dropdown
+            selectedValue={sttMode}
+            options={[
+              {
+                value: "batch",
+                label: t("bangla.mode.batch"),
+              },
+              {
+                value: "streaming",
+                label: t("bangla.mode.streaming"),
+              },
+            ]}
+            onSelect={(mode) =>
+              void updateSetting(
+                "bangla_stt_mode",
+                mode as "batch" | "streaming",
+              )
+            }
+            placeholder={t("bangla.mode.title")}
+            disabled={isUpdating("bangla_stt_mode")}
+          />
         </SettingContainer>
 
         <SettingContainer
@@ -266,7 +296,11 @@ export const BanglaSettings: React.FC = () => {
 
       <SettingsGroup title={t("bangla.privacy.title")}>
         <p className="text-sm text-mid-gray">
-          {t("bangla.privacy.description")}
+          {t(
+            sttMode === "streaming"
+              ? "bangla.privacy.streamingDescription"
+              : "bangla.privacy.batchDescription",
+          )}
         </p>
       </SettingsGroup>
     </div>
