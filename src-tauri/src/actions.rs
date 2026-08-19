@@ -2,7 +2,10 @@
 use crate::apple_intelligence;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error, VadPolicy};
-use crate::bangla_romanization::{romanize_bangla, RomanizationError, RomanizationInput};
+use crate::bangla_diagnostics::{self, BanglaDiagnostic, BanglaDiagnosticOutcomeCategory};
+use crate::bangla_romanization::{
+    romanize_bangla, RomanizationDiagnostics, RomanizationError, RomanizationInput,
+};
 use crate::bangla_transcription::{
     transcribe_bangla, BanglaStreamingManager, CancellationContext, CloudTranscriptionError,
     RecordedAudio,
@@ -39,9 +42,19 @@ use tauri::{AppHandle, Emitter};
 const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 /// The Bangla route has one active recording at a time (enforced by the
-/// coordinator), so one timestamp is sufficient to correlate capture start
-/// with the eventual paste or terminal outcome.
-static BANGLA_RECORDING_STARTED_AT: Lazy<Mutex<Option<Instant>>> = Lazy::new(|| Mutex::new(None));
+/// coordinator). Keep the in-flight STT identity selected at hotkey press so
+/// a settings edit during capture cannot make a streaming diagnostic report a
+/// model that the WebSocket did not actually use. This is cleared at the
+/// terminal path and is separate from the latest diagnostic snapshot.
+struct BanglaRecordingStart {
+    started_at: Instant,
+    stt_provider: String,
+    stt_model: String,
+    streaming: bool,
+}
+
+static BANGLA_RECORDING_START: Lazy<Mutex<Option<BanglaRecordingStart>>> =
+    Lazy::new(|| Mutex::new(None));
 
 #[derive(Clone, serde::Serialize)]
 struct RecordingErrorEvent {
@@ -62,61 +75,173 @@ struct BanglaRomanizationErrorEvent {
 /// Privacy-safe latency breakdown for one Bangla operation. All times are
 /// local durations; this deliberately contains no transcript, audio, key,
 /// endpoint, or provider-response data.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct BanglaLatency {
     enabled: bool,
     romanization_enabled: bool,
-    stt_transport: &'static str,
+    stt_provider: String,
+    stt_model: String,
+    stt_transport: String,
+    romanization_provider: Option<String>,
+    romanization_model: Option<String>,
     recording_started_at: Option<Instant>,
     post_stop_started_at: Instant,
     audio_duration_ms: u128,
     recorder_stop_ms: u128,
+    stt_finalize_ms: Option<u128>,
     stt_ms: u128,
     romanization_ms: u128,
+    romanization_diagnostics: RomanizationDiagnostics,
+    error_code: Option<String>,
+    fallback_reason: Option<String>,
 }
 
 impl BanglaLatency {
     fn new(
         enabled: bool,
-        romanization_enabled: bool,
-        stt_transport: &'static str,
+        settings: &AppSettings,
         recording_started_at: Option<Instant>,
         post_stop_started_at: Instant,
     ) -> Self {
+        let romanization_enabled = should_romanize_bangla(settings);
+        let romanization_provider =
+            romanization_enabled.then(|| settings.bangla_romanization_provider_id.clone());
+        let romanization_model = romanization_enabled.then(|| {
+            settings
+                .bangla_romanization_models
+                .get(&settings.bangla_romanization_provider_id)
+                .cloned()
+                .unwrap_or_default()
+        });
         Self {
             enabled,
             romanization_enabled,
-            stt_transport,
+            stt_provider: settings.bangla_stt_provider_id.clone(),
+            stt_model: settings
+                .bangla_stt_models
+                .get(&settings.bangla_stt_provider_id)
+                .cloned()
+                .unwrap_or_default(),
+            stt_transport: if settings.bangla_stt_mode == BanglaSttMode::Streaming {
+                "streaming".to_string()
+            } else {
+                "batch".to_string()
+            },
+            romanization_provider,
+            romanization_model,
             recording_started_at,
             post_stop_started_at,
             audio_duration_ms: 0,
             recorder_stop_ms: 0,
+            stt_finalize_ms: None,
             stt_ms: 0,
             romanization_ms: 0,
+            romanization_diagnostics: RomanizationDiagnostics::default(),
+            error_code: None,
+            fallback_reason: None,
         }
     }
 
-    fn log(self, outcome: &str, paste_queue_ms: u128, paste_call_ms: u128) {
+    fn set_error(&mut self, error_code: &str) {
+        self.error_code = Some(error_code.to_string());
+    }
+
+    fn set_romanization_diagnostics(&mut self, diagnostics: RomanizationDiagnostics) {
+        self.romanization_diagnostics = diagnostics;
+    }
+
+    fn finish(self, app: &AppHandle, outcome: &str, paste_queue_ms: u128, paste_call_ms: u128) {
         if !self.enabled {
             return;
         }
 
+        let recording_to_terminal_ms = self
+            .recording_started_at
+            .map(|started| started.elapsed().as_millis())
+            .unwrap_or(0);
+        let post_stop_total_ms = self.post_stop_started_at.elapsed().as_millis();
+        let outcome_category = bangla_outcome_category(outcome);
+        let error_code = self.error_code.or_else(|| {
+            matches!(outcome_category, BanglaDiagnosticOutcomeCategory::Failed)
+                .then(|| outcome.to_string())
+        });
+
         debug!(
-            "bangla_latency outcome={} stt_transport={} romanization_enabled={} recording_to_terminal_ms={} post_stop_total_ms={} audio_duration_ms={} recorder_stop_ms={} stt_ms={} romanization_ms={} paste_queue_ms={} paste_call_ms={}",
+            "bangla_latency outcome={} stt_provider={} stt_model={} stt_transport={} romanization_enabled={} romanization_provider={} romanization_model={} recording_to_terminal_ms={} post_stop_total_ms={} audio_duration_ms={} recorder_stop_ms={} stt_finalize_ms={} stt_ms={} romanization_ms={} romanization_headers_ms={} romanization_body_ms={} paste_queue_ms={} paste_call_ms={}",
             outcome,
+            self.stt_provider,
+            self.stt_model,
             self.stt_transport,
             self.romanization_enabled,
-            self.recording_started_at
-                .map(|started| started.elapsed().as_millis())
-                .unwrap_or(0),
-            self.post_stop_started_at.elapsed().as_millis(),
+            self.romanization_provider.as_deref().unwrap_or("disabled"),
+            self.romanization_model.as_deref().unwrap_or("disabled"),
+            recording_to_terminal_ms,
+            post_stop_total_ms,
             self.audio_duration_ms,
             self.recorder_stop_ms,
+            self.stt_finalize_ms.unwrap_or(0),
             self.stt_ms,
             self.romanization_ms,
+            self.romanization_diagnostics
+                .request_headers_ms
+                .unwrap_or(0),
+            self.romanization_diagnostics
+                .response_body_ms
+                .unwrap_or(0),
             paste_queue_ms,
             paste_call_ms,
         );
+
+        bangla_diagnostics::publish(
+            app,
+            BanglaDiagnostic {
+                outcome: outcome.to_string(),
+                outcome_category,
+                error_code,
+                fallback_reason: self.fallback_reason,
+                stt_provider: self.stt_provider,
+                stt_model: self.stt_model,
+                stt_transport: self.stt_transport,
+                romanization_enabled: self.romanization_enabled,
+                romanization_provider: self.romanization_provider,
+                romanization_model: self.romanization_model,
+                recording_duration_ms: millis_u64(self.audio_duration_ms),
+                recorder_stop_ms: millis_u64(self.recorder_stop_ms),
+                stt_finalize_ms: self.stt_finalize_ms.map(millis_u64),
+                stt_ms: millis_u64(self.stt_ms),
+                romanization_ms: millis_u64(self.romanization_ms),
+                romanization_headers_ms: self.romanization_diagnostics.request_headers_ms,
+                romanization_body_ms: self.romanization_diagnostics.response_body_ms,
+                provider_queue_ms: self.romanization_diagnostics.provider_queue_ms,
+                provider_prompt_ms: self.romanization_diagnostics.provider_prompt_ms,
+                provider_completion_ms: self.romanization_diagnostics.provider_completion_ms,
+                provider_total_ms: self.romanization_diagnostics.provider_total_ms,
+                provider_prompt_tokens: self.romanization_diagnostics.provider_prompt_tokens,
+                provider_output_tokens: self.romanization_diagnostics.provider_output_tokens,
+                provider_thinking_tokens: self.romanization_diagnostics.provider_thinking_tokens,
+                provider_request_id: self.romanization_diagnostics.request_id,
+                paste_queue_ms: millis_u64(paste_queue_ms),
+                paste_call_ms: millis_u64(paste_call_ms),
+                post_stop_total_ms: millis_u64(post_stop_total_ms),
+                recording_to_terminal_ms: millis_u64(recording_to_terminal_ms),
+            },
+        );
+    }
+}
+
+fn millis_u64(milliseconds: u128) -> u64 {
+    u64::try_from(milliseconds).unwrap_or(u64::MAX)
+}
+
+fn bangla_outcome_category(outcome: &str) -> BanglaDiagnosticOutcomeCategory {
+    match outcome {
+        "pasted_romanized" => BanglaDiagnosticOutcomeCategory::Romanized,
+        "pasted_raw" => BanglaDiagnosticOutcomeCategory::RawBangla,
+        outcome if outcome.starts_with("pasted_raw_after_romanization") => {
+            BanglaDiagnosticOutcomeCategory::RomanizationFallback
+        }
+        outcome if outcome.starts_with("cancelled") => BanglaDiagnosticOutcomeCategory::Cancelled,
+        _ => BanglaDiagnosticOutcomeCategory::Failed,
     }
 }
 
@@ -230,7 +355,7 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
     let settings = get_settings(app);
     // Clear a timestamp from a cancelled or failed previous attempt before
     // this recording has a chance to become active.
-    *BANGLA_RECORDING_STARTED_AT.lock().unwrap() = None;
+    *BANGLA_RECORDING_START.lock().unwrap() = None;
     let bangla_streaming = app.state::<Arc<BanglaStreamingManager>>();
     let use_streaming = settings.bangla_stt_mode == BanglaSttMode::Streaming;
     if use_streaming {
@@ -288,9 +413,16 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
     }
 
     if recording_error.is_none() {
-        if settings.debug_mode {
-            *BANGLA_RECORDING_STARTED_AT.lock().unwrap() = Some(Instant::now());
-        }
+        *BANGLA_RECORDING_START.lock().unwrap() = Some(BanglaRecordingStart {
+            started_at: Instant::now(),
+            stt_provider: settings.bangla_stt_provider_id.clone(),
+            stt_model: settings
+                .bangla_stt_models
+                .get(&settings.bangla_stt_provider_id)
+                .cloned()
+                .unwrap_or_default(),
+            streaming: use_streaming,
+        });
         shortcut::register_cancel_shortcut(app);
     } else {
         bangla_streaming.cancel_active();
@@ -304,6 +436,10 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
             } else {
                 "unknown"
             };
+            let mut latency =
+                BanglaLatency::new(settings.debug_mode, &settings, None, Instant::now());
+            latency.set_error(error_type);
+            latency.finish(app, "recording_start_failed", 0, 0);
             let _ = app.emit(
                 "recording-error",
                 RecordingErrorEvent {
@@ -319,6 +455,32 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
         start_time.elapsed(),
         if use_streaming { "streaming" } else { "batch" }
     );
+}
+
+/// Complete the diagnostic for Escape/cancel while a Bangla recording is
+/// still active. Once release processing starts, `stop_bangla_recording` owns
+/// the timestamp and records cancellation at the stage where it occurred.
+pub(crate) fn finish_cancelled_bangla_recording(app: &AppHandle) {
+    let Some(recording_start) = BANGLA_RECORDING_START.lock().unwrap().take() else {
+        return;
+    };
+    let settings = get_settings(app);
+    let mut latency = BanglaLatency::new(
+        settings.debug_mode,
+        &settings,
+        Some(recording_start.started_at),
+        Instant::now(),
+    );
+    latency.stt_provider = recording_start.stt_provider;
+    latency.stt_model = recording_start.stt_model;
+    latency.stt_transport = if recording_start.streaming {
+        "streaming".to_string()
+    } else {
+        "batch".to_string()
+    };
+    latency.audio_duration_ms = recording_start.started_at.elapsed().as_millis();
+    latency.set_error("cancelled");
+    latency.finish(app, "cancelled_while_recording", 0, 0);
 }
 
 fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
@@ -343,27 +505,29 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
     let binding_id = binding_id.to_string();
     let cancel_generation = rm.cancel_generation();
     let settings = get_settings(app);
-    let recording_started_at = BANGLA_RECORDING_STARTED_AT.lock().unwrap().take();
+    let recording_start = BANGLA_RECORDING_START.lock().unwrap().take();
+    let recording_started_at = recording_start.as_ref().map(|start| start.started_at);
 
     tauri::async_runtime::spawn(async move {
         let _guard = FinishGuard(ah.clone());
         let mut latency = BanglaLatency::new(
             settings.debug_mode,
-            should_romanize_bangla(&settings),
-            if settings.bangla_stt_mode == BanglaSttMode::Streaming {
-                "streaming"
-            } else {
-                "batch"
-            },
+            &settings,
             recording_started_at,
             post_stop_started_at,
         );
+        if let Some(streaming_start) = recording_start.as_ref().filter(|start| start.streaming) {
+            latency.stt_provider = streaming_start.stt_provider.clone();
+            latency.stt_model = streaming_start.stt_model.clone();
+            latency.stt_transport = "streaming".to_string();
+        }
 
         let recorder_stop_started_at = Instant::now();
         let Some(samples) = rm.stop_recording(&binding_id, cancel_generation) else {
             debug!("Bangla recording ended without samples");
             latency.recorder_stop_ms = recorder_stop_started_at.elapsed().as_millis();
-            latency.log("no_audio", 0, 0);
+            latency.set_error("empty_audio");
+            latency.finish(&ah, "no_audio", 0, 0);
             bangla_streaming.cancel_active();
             utils::hide_recording_overlay(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
@@ -376,7 +540,8 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
 
         if rm.was_cancelled_since(cancel_generation) {
             debug!("Bangla recording was cancelled after capture closed");
-            latency.log("cancelled_after_capture", 0, 0);
+            latency.set_error("cancelled");
+            latency.finish(&ah, "cancelled_after_capture", 0, 0);
             bangla_streaming.cancel_active();
             utils::hide_recording_overlay(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
@@ -388,7 +553,8 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
             Err(error) => {
                 bangla_streaming.cancel_active();
                 emit_bangla_transcription_error(&ah, error);
-                latency.log("invalid_audio", 0, 0);
+                latency.set_error(error.event_code());
+                latency.finish(&ah, "invalid_audio", 0, 0);
                 utils::hide_recording_overlay(&ah);
                 change_tray_icon(&ah, TrayIconState::Idle);
                 return;
@@ -403,6 +569,7 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
         // callback for the final frames before returning. The streaming
         // manager therefore queues CloseStream strictly after all captured
         // audio. Batch mode returns `None` here.
+        let streaming_finalize_started_at = Instant::now();
         let Some(streaming_result) = complete_unless_cancelled(bangla_streaming.finish(), || {
             rm.was_cancelled_since(cancel_generation)
         })
@@ -411,11 +578,18 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
             debug!("Bangla streaming finalization cancelled");
             bangla_streaming.cancel_active();
             latency.stt_ms = stt_started_at.elapsed().as_millis();
-            latency.log("cancelled_during_stt", 0, 0);
+            if settings.bangla_stt_mode == BanglaSttMode::Streaming {
+                latency.stt_finalize_ms = Some(streaming_finalize_started_at.elapsed().as_millis());
+            }
+            latency.set_error("cancelled");
+            latency.finish(&ah, "cancelled_during_stt", 0, 0);
             utils::hide_recording_overlay(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
             return;
         };
+        if streaming_result.is_some() {
+            latency.stt_finalize_ms = Some(streaming_finalize_started_at.elapsed().as_millis());
+        }
         let (result, transport) = match streaming_result {
             Some(Ok(transcript)) => {
                 debug!("Bangla streaming transcription finalized");
@@ -423,6 +597,15 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
             }
             Some(Err(failure)) if !failure.fallback_allowed => (Err(failure.error), "streaming"),
             Some(Err(failure)) => {
+                // The final transcript will come from the batch request made
+                // with the release-time settings, not the failed live stream.
+                latency.stt_provider = settings.bangla_stt_provider_id.clone();
+                latency.stt_model = settings
+                    .bangla_stt_models
+                    .get(&settings.bangla_stt_provider_id)
+                    .cloned()
+                    .unwrap_or_default();
+                latency.fallback_reason = Some(failure.error.event_code().to_string());
                 debug!(
                     "Bangla streaming failed with {}; using one batch fallback",
                     failure.error.event_code()
@@ -435,8 +618,9 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
                 else {
                     debug!("Bangla batch fallback cancelled");
                     latency.stt_ms = stt_started_at.elapsed().as_millis();
-                    latency.stt_transport = "streaming_batch_fallback";
-                    latency.log("cancelled_during_stt", 0, 0);
+                    latency.stt_transport = "streaming_batch_fallback".to_string();
+                    latency.set_error("cancelled");
+                    latency.finish(&ah, "cancelled_during_stt", 0, 0);
                     utils::hide_recording_overlay(&ah);
                     change_tray_icon(&ah, TrayIconState::Idle);
                     return;
@@ -454,7 +638,8 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
                 else {
                     debug!("Bangla batch request cancelled");
                     latency.stt_ms = stt_started_at.elapsed().as_millis();
-                    latency.log("cancelled_during_stt", 0, 0);
+                    latency.set_error("cancelled");
+                    latency.finish(&ah, "cancelled_during_stt", 0, 0);
                     utils::hide_recording_overlay(&ah);
                     change_tray_icon(&ah, TrayIconState::Idle);
                     return;
@@ -463,7 +648,7 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
             }
         };
         latency.stt_ms = stt_started_at.elapsed().as_millis();
-        latency.stt_transport = transport;
+        latency.stt_transport = transport.to_string();
 
         match result {
             Ok(transcript) if !rm.was_cancelled_since(cancel_generation) => {
@@ -493,6 +678,7 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
                     Ok(input) => input,
                     Err(error) => {
                         emit_bangla_romanization_error(&ah, error);
+                        latency.set_error(error.event_code());
                         schedule_bangla_paste(
                             &ah,
                             Arc::clone(&rm),
@@ -513,14 +699,16 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
                 else {
                     debug!("Bangla Romanization request cancelled");
                     latency.romanization_ms = romanization_started_at.elapsed().as_millis();
-                    latency.log("cancelled_during_romanization", 0, 0);
+                    latency.set_error("cancelled");
+                    latency.finish(&ah, "cancelled_during_romanization", 0, 0);
                     utils::hide_recording_overlay(&ah);
                     change_tray_icon(&ah, TrayIconState::Idle);
                     return;
                 };
                 latency.romanization_ms = romanization_started_at.elapsed().as_millis();
+                latency.set_romanization_diagnostics(romanization.diagnostics);
 
-                match romanization {
+                match romanization.result {
                     Ok(result) if !rm.was_cancelled_since(cancel_generation) => {
                         schedule_bangla_paste(
                             &ah,
@@ -533,12 +721,14 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
                     }
                     Ok(_) | Err(RomanizationError::Cancelled) => {
                         debug!("Bangla Romanization result suppressed after cancellation");
-                        latency.log("cancelled_after_romanization", 0, 0);
+                        latency.set_error("cancelled");
+                        latency.finish(&ah, "cancelled_after_romanization", 0, 0);
                         utils::hide_recording_overlay(&ah);
                         change_tray_icon(&ah, TrayIconState::Idle);
                     }
                     Err(error) => {
                         emit_bangla_romanization_error(&ah, error);
+                        latency.set_error(error.event_code());
                         schedule_bangla_paste(
                             &ah,
                             Arc::clone(&rm),
@@ -552,13 +742,15 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
             }
             Ok(_) | Err(CloudTranscriptionError::Cancelled) => {
                 debug!("Bangla cloud result suppressed after cancellation");
-                latency.log("cancelled_after_stt", 0, 0);
+                latency.set_error("cancelled");
+                latency.finish(&ah, "cancelled_after_stt", 0, 0);
                 utils::hide_recording_overlay(&ah);
                 change_tray_icon(&ah, TrayIconState::Idle);
             }
             Err(error) => {
                 emit_bangla_transcription_error(&ah, error);
-                latency.log("stt_failed", 0, 0);
+                latency.set_error(error.event_code());
+                latency.finish(&ah, "stt_failed", 0, 0);
                 utils::hide_recording_overlay(&ah);
                 change_tray_icon(&ah, TrayIconState::Idle);
             }
@@ -581,10 +773,14 @@ fn schedule_bangla_paste(
     let app_for_paste = app.clone();
     let app_for_schedule_failure = app.clone();
     let paste_scheduled_at = Instant::now();
-    let latency_for_paste = latency;
+    let latency_for_paste = latency.clone();
+    let latency_for_schedule_failure = latency;
     if let Err(error) = app.run_on_main_thread(move || {
         if recording_manager.was_cancelled_since(cancel_generation) {
-            latency_for_paste.log(
+            let mut latency = latency_for_paste;
+            latency.set_error("cancelled");
+            latency.finish(
+                &app_for_paste,
                 "cancelled_before_paste",
                 paste_scheduled_at.elapsed().as_millis(),
                 0,
@@ -593,14 +789,18 @@ fn schedule_bangla_paste(
         }
         let paste_started_at = Instant::now();
         match utils::paste(text, app_for_paste.clone()) {
-            Ok(()) => latency_for_paste.log(
+            Ok(()) => latency_for_paste.finish(
+                &app_for_paste,
                 success_outcome,
                 paste_scheduled_at.elapsed().as_millis(),
                 paste_started_at.elapsed().as_millis(),
             ),
             Err(error) => {
                 error!("Failed to paste Bangla result: {error}");
-                latency_for_paste.log(
+                let mut latency = latency_for_paste;
+                latency.set_error("paste_failed");
+                latency.finish(
+                    &app_for_paste,
                     "paste_failed",
                     paste_scheduled_at.elapsed().as_millis(),
                     paste_started_at.elapsed().as_millis(),
@@ -612,7 +812,9 @@ fn schedule_bangla_paste(
         change_tray_icon(&app_for_paste, TrayIconState::Idle);
     }) {
         error!("Failed to schedule Bangla paste: {error}");
-        latency.log("paste_schedule_failed", 0, 0);
+        let mut latency = latency_for_schedule_failure;
+        latency.set_error("paste_schedule_failed");
+        latency.finish(&app_for_schedule_failure, "paste_schedule_failed", 0, 0);
         utils::hide_recording_overlay(&app_for_schedule_failure);
         change_tray_icon(&app_for_schedule_failure, TrayIconState::Idle);
     }
@@ -1480,9 +1682,10 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
 #[cfg(test)]
 mod tests {
     use super::{
-        complete_unless_cancelled, is_blank_transcription, should_romanize_bangla,
-        should_use_streaming_overlay, strip_think_block,
+        bangla_outcome_category, complete_unless_cancelled, is_blank_transcription,
+        should_romanize_bangla, should_use_streaming_overlay, strip_think_block,
     };
+    use crate::bangla_diagnostics::BanglaDiagnosticOutcomeCategory;
     use crate::settings::{get_default_settings, OverlayStyle};
     use std::future;
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -1510,6 +1713,30 @@ mod tests {
 
         settings.bangla_romanization_enabled = false;
         assert!(!should_romanize_bangla(&settings));
+    }
+
+    #[test]
+    fn bangla_terminal_outcomes_have_stable_diagnostic_categories() {
+        assert_eq!(
+            bangla_outcome_category("pasted_romanized"),
+            BanglaDiagnosticOutcomeCategory::Romanized
+        );
+        assert_eq!(
+            bangla_outcome_category("pasted_raw"),
+            BanglaDiagnosticOutcomeCategory::RawBangla
+        );
+        assert_eq!(
+            bangla_outcome_category("pasted_raw_after_romanization_error"),
+            BanglaDiagnosticOutcomeCategory::RomanizationFallback
+        );
+        assert_eq!(
+            bangla_outcome_category("cancelled_during_stt"),
+            BanglaDiagnosticOutcomeCategory::Cancelled
+        );
+        assert_eq!(
+            bangla_outcome_category("stt_failed"),
+            BanglaDiagnosticOutcomeCategory::Failed
+        );
     }
 
     #[test]

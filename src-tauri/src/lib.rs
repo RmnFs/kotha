@@ -4,6 +4,7 @@ mod apple_intelligence;
 mod audio_feedback;
 pub mod audio_toolkit;
 mod autostart;
+mod bangla_diagnostics;
 mod bangla_romanization;
 mod bangla_transcription;
 mod catalog;
@@ -649,6 +650,8 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_bangla_romanization_api_key_setting,
             shortcut::change_bangla_romanization_model_setting,
             shortcut::change_bangla_romanization_timeout_setting,
+            bangla_diagnostics::get_latest_bangla_diagnostic,
+            bangla_diagnostics::clear_latest_bangla_diagnostic,
             shortcut::change_experimental_enabled_setting,
             shortcut::change_post_process_base_url_setting,
             shortcut::change_post_process_api_key_setting,
@@ -737,6 +740,7 @@ pub fn run(cli_args: CliArgs) {
             helpers::clamshell::is_laptop,
         ])
         .events(collect_events![
+            bangla_diagnostics::BanglaDiagnosticEvent,
             managers::history::HistoryUpdatePayload,
             managers::transcription::StreamTextEvent,
             managers::transcription::StreamPhaseEvent,

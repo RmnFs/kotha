@@ -11,6 +11,8 @@ The supported model choices are already settled for this work:
 
 ## Checkpoint 1 — Clear, privacy-safe diagnostics inside the app
 
+**Status: Implemented on the `debug` branch.** The automated verification described in the codebase map covers the typed payload, provider metadata parsing, frontend build/lint, and translation catalogs; the live hotkey scenarios in the acceptance criteria remain the manual verification checklist.
+
 ### Goal
 
 Make Bangla performance easy to understand without reading log files. When Debug Mode is enabled, the Bangla settings screen should show how long transcription, Romanization, and the complete operation took for the most recent Bangla request.

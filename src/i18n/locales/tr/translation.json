@@ -629,7 +629,10 @@
       "title": "Endpoint",
       "description": "Deepgram-compatible transcription endpoint used by both audio processing modes."
     },
-    "model": { "title": "Model", "description": "Deepgram model identifier." },
+    "model": {
+      "title": "Model",
+      "description": "Deepgram model identifier."
+    },
     "apiKey": {
       "title": "Deepgram API Key",
       "description": "Your personal Deepgram API key.",
@@ -702,6 +705,64 @@
       "provider": "The Bangla transcription service could not process this recording.",
       "malformed_response": "The Bangla transcription service returned an unexpected response.",
       "empty_transcript": "No Bangla speech was detected."
+    },
+    "diagnostics": {
+      "title": "Last Bangla diagnostic",
+      "description": "Session-only, content-free timing details for the most recent Bangla operation.",
+      "empty": "Complete a Bangla recording to see transcription and Romanization timings.",
+      "clear": "Clear",
+      "showDetails": "Show details",
+      "hideDetails": "Hide details",
+      "disabled": "Disabled",
+      "duration": {
+        "milliseconds": "{{value}} ms",
+        "seconds": "{{value}} s"
+      },
+      "providers": {
+        "deepgram": "Deepgram",
+        "groq": "Groq",
+        "gemini": "Gemini",
+        "openai": "OpenAI"
+      },
+      "transports": {
+        "batch": "Batch",
+        "streaming": "Streaming",
+        "streaming_batch_fallback": "Streaming → batch fallback"
+      },
+      "outcomes": {
+        "romanized": "Romanized and pasted",
+        "rawBangla": "Bangla pasted",
+        "fallback": "Bangla fallback pasted",
+        "cancelled": "Cancelled",
+        "failed": "Failed"
+      },
+      "summary": {
+        "total": "After release",
+        "transcription": "Transcription",
+        "romanization": "Romanization"
+      },
+      "details": {
+        "recordingDuration": "Recording duration",
+        "recorderStop": "Recorder stop and drain",
+        "sttFinalize": "Streaming finalization",
+        "sttTotal": "Transcription total",
+        "romanizationHeaders": "Romanization to headers",
+        "romanizationBody": "Romanization body and parse",
+        "providerQueue": "Provider queue",
+        "providerPrompt": "Provider prompt processing",
+        "providerCompletion": "Provider completion",
+        "providerTotal": "Provider total",
+        "promptTokens": "Prompt tokens",
+        "outputTokens": "Output tokens",
+        "thinkingTokens": "Thinking tokens",
+        "pasteQueue": "Main-thread paste queue",
+        "pasteCall": "Paste call",
+        "recordingToTerminal": "Recording start to terminal",
+        "outcomeCode": "Outcome code",
+        "errorCode": "Error code",
+        "fallbackReason": "Streaming fallback reason",
+        "requestId": "Provider request ID"
+      }
     }
   },
   "footer": {

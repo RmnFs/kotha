@@ -85,6 +85,11 @@ pub fn cancel_current_operation(app: &AppHandle) {
     let recording_was_active = audio_manager.is_recording();
     audio_manager.cancel_recording();
 
+    // Escape during active Bangla capture never enters the normal stop path,
+    // so finish its session-only diagnostic here. This is a no-op for every
+    // other recording mode and when Debug Mode was not active at capture start.
+    crate::actions::finish_cancelled_bangla_recording(app);
+
     // Abandon any live streaming transcription
     let tm = app.state::<Arc<TranscriptionManager>>();
     tm.cancel_stream();

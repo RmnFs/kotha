@@ -696,6 +696,10 @@ pub fn change_debug_mode_setting(app: AppHandle, enabled: bool) -> Result<(), St
     // debug mode, so logs are forwarded to the frontend only while it is on.
     crate::WEBVIEW_LOG_STREAMING.store(enabled, std::sync::atomic::Ordering::Relaxed);
 
+    if !enabled {
+        crate::bangla_diagnostics::clear(&app);
+    }
+
     // Emit event to notify frontend of debug mode change
     let _ = app.emit(
         "settings-changed",

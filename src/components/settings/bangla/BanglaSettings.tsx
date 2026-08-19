@@ -11,6 +11,7 @@ import {
 } from "../../ui";
 import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
 import { useSettings } from "../../../hooks/useSettings";
+import { BanglaDiagnosticCard } from "./BanglaDiagnosticCard";
 
 /**
  * Bangla cloud transcription is deliberately independent from both selected
@@ -293,6 +294,8 @@ export const BanglaSettings: React.FC = () => {
           />
         </SettingContainer>
       </SettingsGroup>
+
+      {settings?.debug_mode && <BanglaDiagnosticCard />}
 
       <SettingsGroup title={t("bangla.privacy.title")}>
         <p className="text-sm text-mid-gray">

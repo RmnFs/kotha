@@ -325,6 +325,22 @@ async changeBanglaRomanizationTimeoutSetting(timeoutSeconds: number) : Promise<R
     else return { status: "error", error: e  as any };
 }
 },
+async getLatestBanglaDiagnostic() : Promise<Result<BanglaDiagnostic | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_latest_bangla_diagnostic") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async clearLatestBanglaDiagnostic() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("clear_latest_bangla_diagnostic") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeExperimentalEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_experimental_enabled_setting", { enabled }) };
@@ -1017,10 +1033,12 @@ async isLaptop() : Promise<Result<boolean, string>> {
 
 
 export const events = __makeEvents__<{
+banglaDiagnosticEvent: BanglaDiagnosticEvent,
 historyUpdatePayload: HistoryUpdatePayload,
 streamPhaseEvent: StreamPhaseEvent,
 streamTextEvent: StreamTextEvent
 }>({
+banglaDiagnosticEvent: "bangla-diagnostic-event",
 historyUpdatePayload: "history-update-payload",
 streamPhaseEvent: "stream-phase-event",
 streamTextEvent: "stream-text-event"
@@ -1089,6 +1107,15 @@ overlay_style?: OverlayStyle }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { transcribe: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }
+/**
+ * A privacy-safe snapshot of one terminal Bangla operation.
+ */
+export type BanglaDiagnostic = { outcome: string; outcome_category: BanglaDiagnosticOutcomeCategory; error_code: string | null; fallback_reason: string | null; stt_provider: string; stt_model: string; stt_transport: string; romanization_enabled: boolean; romanization_provider: string | null; romanization_model: string | null; recording_duration_ms: number; recorder_stop_ms: number; stt_finalize_ms: number | null; stt_ms: number; romanization_ms: number; romanization_headers_ms: number | null; romanization_body_ms: number | null; provider_queue_ms: number | null; provider_prompt_ms: number | null; provider_completion_ms: number | null; provider_total_ms: number | null; provider_prompt_tokens: number | null; provider_output_tokens: number | null; provider_thinking_tokens: number | null; provider_request_id: string | null; paste_queue_ms: number; paste_call_ms: number; post_stop_total_ms: number; recording_to_terminal_ms: number }
+/**
+ * `diagnostic: null` tells an open Bangla page to clear its session view.
+ */
+export type BanglaDiagnosticEvent = { diagnostic: BanglaDiagnostic | null }
+export type BanglaDiagnosticOutcomeCategory = "romanized" | "raw_bangla" | "romanization_fallback" | "cancelled" | "failed"
 /**
  * Transport used by the dedicated Bangla cloud-transcription route.
  * Batch remains the default so existing users keep the current privacy
