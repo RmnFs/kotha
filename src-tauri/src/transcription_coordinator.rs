@@ -35,6 +35,11 @@ enum Command {
     Cancel {
         recording_was_active: bool,
     },
+    BanglaLimitReached {
+        binding_id: String,
+        session_id: u64,
+        push_to_talk: bool,
+    },
     ProcessingFinished,
 }
 
@@ -69,6 +74,28 @@ fn classify_ptt_event(
     }
 }
 
+fn consume_suppressed_input(
+    suppressed_until_release: &mut Option<String>,
+    binding_id: &str,
+    is_pressed: bool,
+) -> bool {
+    if suppressed_until_release.as_deref() != Some(binding_id) {
+        return false;
+    }
+    if !is_pressed {
+        *suppressed_until_release = None;
+    }
+    true
+}
+
+fn should_suppress_after_limit(
+    push_to_talk: bool,
+    pending_release_binding: Option<&str>,
+    binding_id: &str,
+) -> bool {
+    push_to_talk && pending_release_binding != Some(binding_id)
+}
+
 /// Serialises all transcription lifecycle events through a single thread
 /// to eliminate race conditions between keyboard shortcuts, signals, and
 /// the async transcribe-paste pipeline.
@@ -89,6 +116,7 @@ impl TranscriptionCoordinator {
                 let mut stage = Stage::Idle;
                 let mut last_press: Option<Instant> = None;
                 let mut pending_release: Option<PendingRelease> = None;
+                let mut suppressed_until_release: Option<String> = None;
 
                 loop {
                     let cmd = if let Some(pending) = &pending_release {
@@ -126,6 +154,21 @@ impl TranscriptionCoordinator {
                             is_pressed,
                             push_to_talk,
                         } => {
+                            if consume_suppressed_input(
+                                &mut suppressed_until_release,
+                                &binding_id,
+                                is_pressed,
+                            ) {
+                                if !is_pressed {
+                                    last_press = None;
+                                }
+                                debug!(
+                                    "Suppressing '{}' input until the post-limit key release",
+                                    binding_id
+                                );
+                                continue;
+                            }
+
                             let pending_release_binding = pending_release
                                 .as_ref()
                                 .map(|pending| pending.binding_id.as_str());
@@ -200,6 +243,36 @@ impl TranscriptionCoordinator {
                                 stage = Stage::Idle;
                             }
                         }
+                        Command::BanglaLimitReached {
+                            binding_id,
+                            session_id,
+                            push_to_talk,
+                        } => {
+                            // A push-to-talk release may already be in its X11
+                            // grace window when the deadline arrives. In that
+                            // case no future release event is coming, so do not
+                            // leave the binding suppressed after processing.
+                            let suppress_until_release = should_suppress_after_limit(
+                                push_to_talk,
+                                pending_release
+                                    .as_ref()
+                                    .map(|pending| pending.binding_id.as_str()),
+                                &binding_id,
+                            );
+                            pending_release = None;
+                            if matches!(&stage, Stage::Recording(id) if id == &binding_id)
+                                && crate::actions::stop_bangla_recording_at_limit(
+                                    &app,
+                                    &binding_id,
+                                    session_id,
+                                )
+                            {
+                                stage = Stage::Processing;
+                                if suppress_until_release {
+                                    suppressed_until_release = Some(binding_id);
+                                }
+                            }
+                        }
                         Command::ProcessingFinished => {
                             stage = Stage::Idle;
                         }
@@ -243,6 +316,20 @@ impl TranscriptionCoordinator {
             .tx
             .send(Command::Cancel {
                 recording_was_active,
+            })
+            .is_err()
+        {
+            warn!("Transcription coordinator channel closed");
+        }
+    }
+
+    pub fn request_bangla_limit_stop(&self, binding_id: &str, session_id: u64, push_to_talk: bool) {
+        if self
+            .tx
+            .send(Command::BanglaLimitReached {
+                binding_id: binding_id.to_string(),
+                session_id,
+                push_to_talk,
             })
             .is_err()
         {
@@ -315,6 +402,31 @@ mod tests {
             ),
             PttAction::DeferRelease
         );
+    }
+
+    #[test]
+    fn post_limit_key_repeat_is_suppressed_until_release() {
+        let binding = TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID;
+        let mut suppressed = Some(binding.to_string());
+
+        assert!(consume_suppressed_input(&mut suppressed, binding, true));
+        assert_eq!(suppressed.as_deref(), Some(binding));
+        assert!(consume_suppressed_input(&mut suppressed, binding, false));
+        assert_eq!(suppressed, None);
+        assert!(!consume_suppressed_input(&mut suppressed, binding, true));
+    }
+
+    #[test]
+    fn release_already_in_grace_window_does_not_leave_limit_suppression() {
+        let binding = TRANSCRIBE_BANGLA_ROMANIZED_BINDING_ID;
+        assert!(!should_suppress_after_limit(true, Some(binding), binding));
+        assert!(should_suppress_after_limit(true, None, binding));
+        assert!(should_suppress_after_limit(
+            true,
+            Some("transcribe"),
+            binding
+        ));
+        assert!(!should_suppress_after_limit(false, None, binding));
     }
 
     #[test]

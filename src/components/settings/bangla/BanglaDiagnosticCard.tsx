@@ -127,6 +127,13 @@ export const BanglaDiagnosticCard: React.FC = () => {
         value: formatDuration(diagnostic.recording_duration_ms),
       },
       {
+        label: t("bangla.diagnostics.details.recordingStopReason"),
+        value: t(
+          `bangla.diagnostics.stopReasons.${diagnostic.recording_stop_reason}`,
+          { defaultValue: diagnostic.recording_stop_reason },
+        ),
+      },
+      {
         label: t("bangla.diagnostics.details.recorderStop"),
         value: formatDuration(diagnostic.recorder_stop_ms),
       },

@@ -27,8 +27,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-const MAX_BANGLA_AUDIO_SECONDS: usize = 9 * 60;
-pub(super) const MAX_BANGLA_AUDIO_SAMPLES: usize =
+const MAX_BANGLA_AUDIO_SECONDS: usize = 2 * 60;
+pub(crate) const MAX_BANGLA_AUDIO_SAMPLES: usize =
     WHISPER_SAMPLE_RATE as usize * MAX_BANGLA_AUDIO_SECONDS;
 
 /// A completed capture ready for a batch provider. The recorder guarantees
@@ -179,7 +179,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn recorder_audio_is_limited_to_nine_minutes() {
+    fn recorder_audio_is_limited_to_two_minutes() {
         assert!(RecordedAudio::from_recorder(vec![0.0; MAX_BANGLA_AUDIO_SAMPLES]).is_ok());
         assert_eq!(
             RecordedAudio::from_recorder(vec![0.0; MAX_BANGLA_AUDIO_SAMPLES + 1]).unwrap_err(),

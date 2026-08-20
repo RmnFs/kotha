@@ -638,6 +638,10 @@
       "description": "Your personal Deepgram API key.",
       "placeholder": "Enter your Deepgram API key"
     },
+    "recordingLimit": {
+      "title": "Two-minute recording limit reached",
+      "description": "Handy stopped recording and is processing the captured audio."
+    },
     "romanization": {
       "title": "Romanization",
       "enabled": {
@@ -729,6 +733,12 @@
         "streaming": "Streaming",
         "streaming_batch_fallback": "Streaming → batch fallback"
       },
+      "stopReasons": {
+        "not_started": "Not started",
+        "hotkey_release": "Hotkey release",
+        "limit_reached": "Two-minute limit",
+        "cancelled": "Cancelled"
+      },
       "outcomes": {
         "romanized": "Romanized and pasted",
         "rawBangla": "Bangla pasted",
@@ -743,6 +753,7 @@
       },
       "details": {
         "recordingDuration": "Recording duration",
+        "recordingStopReason": "Recording stop reason",
         "recorderStop": "Recorder stop and drain",
         "sttFinalize": "Streaming finalization",
         "sttTotal": "Transcription total",

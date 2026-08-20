@@ -24,7 +24,6 @@ const SESSION_RESULT_TIMEOUT: Duration = Duration::from_secs(35);
 pub(super) enum AbortReason {
     Cancelled,
     QueueOverflow,
-    AudioTooLong,
 }
 
 pub(super) enum StreamCommand {
@@ -60,7 +59,6 @@ impl StreamingFailure {
         match reason {
             AbortReason::Cancelled => Self::terminal(CloudTranscriptionError::Cancelled),
             AbortReason::QueueOverflow => Self::recoverable(CloudTranscriptionError::Provider),
-            AbortReason::AudioTooLong => Self::terminal(CloudTranscriptionError::AudioTooLong),
         }
     }
 }
@@ -75,6 +73,12 @@ struct RunningSession {
 enum ActiveSession {
     Running(RunningSession),
     Failed(StreamingFailure),
+}
+
+fn bounded_frame_len(accepted_samples: usize, frame_len: usize) -> usize {
+    MAX_BANGLA_AUDIO_SAMPLES
+        .saturating_sub(accepted_samples)
+        .min(frame_len)
 }
 
 /// Owns at most one Bangla streaming attempt. The transcription coordinator
@@ -152,22 +156,27 @@ impl BanglaStreamingManager {
             return;
         };
 
-        let Some(next_sample_count) = session.accepted_samples.checked_add(frame.len()) else {
-            Self::abort_running(session, AbortReason::AudioTooLong);
-            self.accepting_audio.store(false, Ordering::Release);
-            return;
-        };
-        if next_sample_count > MAX_BANGLA_AUDIO_SAMPLES {
-            Self::abort_running(session, AbortReason::AudioTooLong);
+        let accepted_frame_len = bounded_frame_len(session.accepted_samples, frame.len());
+        if accepted_frame_len == 0 {
             self.accepting_audio.store(false, Ordering::Release);
             return;
         }
+        // The wall-clock deadline normally stops capture first. If its wakeup
+        // is delayed, cap the final frame instead of aborting an otherwise
+        // valid stream or transmitting more than the product limit.
+        let frame = &frame[..accepted_frame_len];
+        let next_sample_count = session.accepted_samples + frame.len();
 
         match session
             .commands
             .try_send(StreamCommand::Audio(frame.to_vec()))
         {
-            Ok(()) => session.accepted_samples = next_sample_count,
+            Ok(()) => {
+                session.accepted_samples = next_sample_count;
+                if next_sample_count == MAX_BANGLA_AUDIO_SAMPLES {
+                    self.accepting_audio.store(false, Ordering::Release);
+                }
+            }
             Err(mpsc::error::TrySendError::Full(_)) => {
                 Self::abort_running(session, AbortReason::QueueOverflow);
                 self.accepting_audio.store(false, Ordering::Release);
@@ -264,5 +273,13 @@ mod tests {
             .expect_err("missing credentials must fail");
         assert_eq!(failure.error, CloudTranscriptionError::MissingConfiguration);
         assert!(!failure.fallback_allowed);
+    }
+
+    #[test]
+    fn frames_are_capped_without_crossing_the_two_minute_boundary() {
+        assert_eq!(bounded_frame_len(0, 480), 480);
+        assert_eq!(bounded_frame_len(MAX_BANGLA_AUDIO_SAMPLES - 100, 480), 100);
+        assert_eq!(bounded_frame_len(MAX_BANGLA_AUDIO_SAMPLES, 480), 0);
+        assert_eq!(bounded_frame_len(usize::MAX, 480), 0);
     }
 }

@@ -8,7 +8,7 @@ use crate::bangla_romanization::{
 };
 use crate::bangla_transcription::{
     transcribe_bangla, BanglaStreamingManager, CancellationContext, CloudTranscriptionError,
-    RecordedAudio,
+    RecordedAudio, MAX_BANGLA_AUDIO_SAMPLES,
 };
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
@@ -34,12 +34,14 @@ use log::{debug, error, warn};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::future::Future;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::Manager;
 use tauri::{AppHandle, Emitter};
 
 const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
+const MAX_BANGLA_RECORDING_DURATION: Duration = Duration::from_secs(2 * 60);
 
 /// The Bangla route has one active recording at a time (enforced by the
 /// coordinator). Keep the in-flight STT identity selected at hotkey press so
@@ -47,6 +49,8 @@ const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
 /// model that the WebSocket did not actually use. This is cleared at the
 /// terminal path and is separate from the latest diagnostic snapshot.
 struct BanglaRecordingStart {
+    session_id: u64,
+    binding_id: String,
     started_at: Instant,
     stt_provider: String,
     stt_model: String,
@@ -55,6 +59,22 @@ struct BanglaRecordingStart {
 
 static BANGLA_RECORDING_START: Lazy<Mutex<Option<BanglaRecordingStart>>> =
     Lazy::new(|| Mutex::new(None));
+static NEXT_BANGLA_RECORDING_SESSION_ID: AtomicU64 = AtomicU64::new(1);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BanglaStopReason {
+    HotkeyRelease,
+    LimitReached,
+}
+
+impl BanglaStopReason {
+    fn diagnostic_value(self) -> &'static str {
+        match self {
+            Self::HotkeyRelease => "hotkey_release",
+            Self::LimitReached => "limit_reached",
+        }
+    }
+}
 
 #[derive(Clone, serde::Serialize)]
 struct RecordingErrorEvent {
@@ -85,6 +105,7 @@ struct BanglaLatency {
     romanization_provider: Option<String>,
     romanization_model: Option<String>,
     recording_started_at: Option<Instant>,
+    recording_stop_reason: String,
     post_stop_started_at: Instant,
     audio_duration_ms: u128,
     recorder_stop_ms: u128,
@@ -130,6 +151,7 @@ impl BanglaLatency {
             romanization_provider,
             romanization_model,
             recording_started_at,
+            recording_stop_reason: "not_started".to_string(),
             post_stop_started_at,
             audio_duration_ms: 0,
             recorder_stop_ms: 0,
@@ -167,7 +189,7 @@ impl BanglaLatency {
         });
 
         debug!(
-            "bangla_latency outcome={} stt_provider={} stt_model={} stt_transport={} romanization_enabled={} romanization_provider={} romanization_model={} recording_to_terminal_ms={} post_stop_total_ms={} audio_duration_ms={} recorder_stop_ms={} stt_finalize_ms={} stt_ms={} romanization_ms={} romanization_headers_ms={} romanization_body_ms={} paste_queue_ms={} paste_call_ms={}",
+            "bangla_latency outcome={} stt_provider={} stt_model={} stt_transport={} romanization_enabled={} romanization_provider={} romanization_model={} recording_stop_reason={} recording_to_terminal_ms={} post_stop_total_ms={} audio_duration_ms={} recorder_stop_ms={} stt_finalize_ms={} stt_ms={} romanization_ms={} romanization_headers_ms={} romanization_body_ms={} paste_queue_ms={} paste_call_ms={}",
             outcome,
             self.stt_provider,
             self.stt_model,
@@ -175,6 +197,7 @@ impl BanglaLatency {
             self.romanization_enabled,
             self.romanization_provider.as_deref().unwrap_or("disabled"),
             self.romanization_model.as_deref().unwrap_or("disabled"),
+            self.recording_stop_reason,
             recording_to_terminal_ms,
             post_stop_total_ms,
             self.audio_duration_ms,
@@ -205,6 +228,7 @@ impl BanglaLatency {
                 romanization_enabled: self.romanization_enabled,
                 romanization_provider: self.romanization_provider,
                 romanization_model: self.romanization_model,
+                recording_stop_reason: self.recording_stop_reason,
                 recording_duration_ms: millis_u64(self.audio_duration_ms),
                 recorder_stop_ms: millis_u64(self.recorder_stop_ms),
                 stt_finalize_ms: self.stt_finalize_ms.map(millis_u64),
@@ -381,6 +405,10 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
         OverlayStyle::None => {}
     }
 
+    // Start the wall-clock safety budget before asking the recorder to begin.
+    // This guarantees microphone/setup latency cannot extend cloud capture
+    // beyond the product limit.
+    let recording_started_at = Instant::now();
     let mut recording_error: Option<String> = None;
     if is_always_on {
         let rm_clone = Arc::clone(&rm);
@@ -413,8 +441,11 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
     }
 
     if recording_error.is_none() {
+        let session_id = NEXT_BANGLA_RECORDING_SESSION_ID.fetch_add(1, Ordering::Relaxed);
         *BANGLA_RECORDING_START.lock().unwrap() = Some(BanglaRecordingStart {
-            started_at: Instant::now(),
+            session_id,
+            binding_id: binding_id.to_string(),
+            started_at: recording_started_at,
             stt_provider: settings.bangla_stt_provider_id.clone(),
             stt_model: settings
                 .bangla_stt_models
@@ -424,6 +455,28 @@ fn start_bangla_recording(app: &AppHandle, binding_id: &str) {
             streaming: use_streaming,
         });
         shortcut::register_cancel_shortcut(app);
+
+        let deadline = recording_started_at + MAX_BANGLA_RECORDING_DURATION;
+        let app_for_deadline = app.clone();
+        let binding_id_for_deadline = binding_id.to_string();
+        let push_to_talk = settings.push_to_talk;
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(deadline.saturating_duration_since(Instant::now())).await;
+            if let Some(coordinator) = app_for_deadline.try_state::<TranscriptionCoordinator>() {
+                coordinator.request_bangla_limit_stop(
+                    &binding_id_for_deadline,
+                    session_id,
+                    push_to_talk,
+                );
+            } else {
+                let _ = stop_bangla_recording(
+                    &app_for_deadline,
+                    &binding_id_for_deadline,
+                    BanglaStopReason::LimitReached,
+                    Some(session_id),
+                );
+            }
+        });
     } else {
         bangla_streaming.cancel_active();
         utils::hide_recording_overlay(app);
@@ -478,19 +531,64 @@ pub(crate) fn finish_cancelled_bangla_recording(app: &AppHandle) {
     } else {
         "batch".to_string()
     };
+    latency.recording_stop_reason = "cancelled".to_string();
     latency.audio_duration_ms = recording_start.started_at.elapsed().as_millis();
     latency.set_error("cancelled");
     latency.finish(app, "cancelled_while_recording", 0, 0);
 }
 
-fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
+fn take_bangla_recording_start(
+    binding_id: &str,
+    expected_session_id: Option<u64>,
+) -> Option<BanglaRecordingStart> {
+    let mut active = BANGLA_RECORDING_START.lock().unwrap();
+    let matches = active.as_ref().is_some_and(|recording| {
+        bangla_recording_matches(recording, binding_id, expected_session_id)
+    });
+    matches.then(|| active.take()).flatten()
+}
+
+fn bangla_recording_matches(
+    recording: &BanglaRecordingStart,
+    binding_id: &str,
+    expected_session_id: Option<u64>,
+) -> bool {
+    recording.binding_id == binding_id
+        && match expected_session_id {
+            Some(session_id) => recording.session_id == session_id,
+            None => true,
+        }
+}
+
+fn stop_bangla_recording(
+    app: &AppHandle,
+    binding_id: &str,
+    stop_reason: BanglaStopReason,
+    expected_session_id: Option<u64>,
+) -> bool {
+    // Hotkey release, the safety deadline, and cancellation can race. Only the
+    // first caller that claims this exact recording may change UI state or run
+    // the transcription pipeline.
+    let Some(recording_start) = take_bangla_recording_start(binding_id, expected_session_id) else {
+        debug!(
+            "Ignoring duplicate or stale Bangla stop for binding: {}",
+            binding_id
+        );
+        return false;
+    };
+
     let post_stop_started_at = Instant::now();
     shortcut::unregister_cancel_shortcut(app);
 
     debug!(
-        "Bangla transcription stop called for binding: {}",
-        binding_id
+        "Bangla transcription stop called for binding: {} (reason={})",
+        binding_id,
+        stop_reason.diagnostic_value()
     );
+
+    if stop_reason == BanglaStopReason::LimitReached {
+        let _ = app.emit("bangla-recording-limit-reached", ());
+    }
 
     let ah = app.clone();
     let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
@@ -505,8 +603,7 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
     let binding_id = binding_id.to_string();
     let cancel_generation = rm.cancel_generation();
     let settings = get_settings(app);
-    let recording_start = BANGLA_RECORDING_START.lock().unwrap().take();
-    let recording_started_at = recording_start.as_ref().map(|start| start.started_at);
+    let recording_started_at = Some(recording_start.started_at);
 
     tauri::async_runtime::spawn(async move {
         let _guard = FinishGuard(ah.clone());
@@ -516,14 +613,20 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
             recording_started_at,
             post_stop_started_at,
         );
-        if let Some(streaming_start) = recording_start.as_ref().filter(|start| start.streaming) {
-            latency.stt_provider = streaming_start.stt_provider.clone();
-            latency.stt_model = streaming_start.stt_model.clone();
+        latency.recording_stop_reason = stop_reason.diagnostic_value().to_string();
+        if recording_start.streaming {
+            latency.stt_provider = recording_start.stt_provider.clone();
+            latency.stt_model = recording_start.stt_model.clone();
             latency.stt_transport = "streaming".to_string();
         }
 
         let recorder_stop_started_at = Instant::now();
-        let Some(samples) = rm.stop_recording(&binding_id, cancel_generation) else {
+        let samples = if stop_reason == BanglaStopReason::LimitReached {
+            rm.stop_recording_without_buffer(&binding_id, cancel_generation)
+        } else {
+            rm.stop_recording(&binding_id, cancel_generation)
+        };
+        let Some(mut samples) = samples else {
             debug!("Bangla recording ended without samples");
             latency.recorder_stop_ms = recorder_stop_started_at.elapsed().as_millis();
             latency.set_error("empty_audio");
@@ -533,6 +636,12 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
             change_tray_icon(&ah, TrayIconState::Idle);
             return;
         };
+        if stop_reason == BanglaStopReason::LimitReached {
+            // Tokio scheduling and recorder drain can add a partial frame at
+            // the boundary. Preserve the first two minutes rather than
+            // rejecting the entire otherwise-valid recording.
+            samples.truncate(MAX_BANGLA_AUDIO_SAMPLES);
+        }
         latency.recorder_stop_ms = recorder_stop_started_at.elapsed().as_millis();
         // The Bangla recorder is always 16 kHz mono. This duration is useful
         // context for comparing cloud stage latency across recordings.
@@ -756,6 +865,22 @@ fn stop_bangla_recording(app: &AppHandle, binding_id: &str) {
             }
         }
     });
+    true
+}
+
+/// Called only by the serialized transcription coordinator when the
+/// session-scoped safety deadline expires.
+pub(crate) fn stop_bangla_recording_at_limit(
+    app: &AppHandle,
+    binding_id: &str,
+    session_id: u64,
+) -> bool {
+    stop_bangla_recording(
+        app,
+        binding_id,
+        BanglaStopReason::LimitReached,
+        Some(session_id),
+    )
 }
 
 fn should_romanize_bangla(settings: &AppSettings) -> bool {
@@ -1353,7 +1478,7 @@ impl ShortcutAction for TranscribeAction {
 
     fn stop(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
         if !self.mode.uses_local_inference() {
-            stop_bangla_recording(app, binding_id);
+            let _ = stop_bangla_recording(app, binding_id, BanglaStopReason::HotkeyRelease, None);
             return;
         }
 
@@ -1682,8 +1807,9 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
 #[cfg(test)]
 mod tests {
     use super::{
-        bangla_outcome_category, complete_unless_cancelled, is_blank_transcription,
-        should_romanize_bangla, should_use_streaming_overlay, strip_think_block,
+        bangla_outcome_category, bangla_recording_matches, complete_unless_cancelled,
+        is_blank_transcription, should_romanize_bangla, should_use_streaming_overlay,
+        strip_think_block, BanglaRecordingStart,
     };
     use crate::bangla_diagnostics::BanglaDiagnosticOutcomeCategory;
     use crate::settings::{get_default_settings, OverlayStyle};
@@ -1691,7 +1817,7 @@ mod tests {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
     use std::thread;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn blank_transcription_is_detected() {
@@ -1737,6 +1863,39 @@ mod tests {
             bangla_outcome_category("stt_failed"),
             BanglaDiagnosticOutcomeCategory::Failed
         );
+    }
+
+    #[test]
+    fn bangla_deadline_only_matches_its_own_active_session() {
+        let recording = BanglaRecordingStart {
+            session_id: 42,
+            binding_id: "transcribe_bangla_romanized".to_string(),
+            started_at: Instant::now(),
+            stt_provider: "deepgram".to_string(),
+            stt_model: "nova-3".to_string(),
+            streaming: true,
+        };
+
+        assert!(bangla_recording_matches(
+            &recording,
+            "transcribe_bangla_romanized",
+            Some(42)
+        ));
+        assert!(!bangla_recording_matches(
+            &recording,
+            "transcribe_bangla_romanized",
+            Some(41)
+        ));
+        assert!(!bangla_recording_matches(
+            &recording,
+            "transcribe",
+            Some(42)
+        ));
+        assert!(bangla_recording_matches(
+            &recording,
+            "transcribe_bangla_romanized",
+            None
+        ));
     }
 
     #[test]

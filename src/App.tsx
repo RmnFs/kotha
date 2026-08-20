@@ -125,6 +125,19 @@ function App() {
     };
   }, [t]);
 
+  // The Bangla safety deadline finalizes normally; this is informational, not
+  // a transcription failure. The event deliberately carries no user content.
+  useEffect(() => {
+    const unlisten = listen("bangla-recording-limit-reached", () => {
+      toast.info(t("bangla.recordingLimit.title"), {
+        description: t("bangla.recordingLimit.description"),
+      });
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
   // Cloud STT failures use stable error codes rather than raw provider errors:
   // transport details can include private endpoint configuration or content.
   useEffect(() => {

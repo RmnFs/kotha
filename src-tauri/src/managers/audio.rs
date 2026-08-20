@@ -808,6 +808,26 @@ impl AudioRecordingManager {
     }
 
     pub fn stop_recording(&self, binding_id: &str, cancel_generation: u64) -> Option<Vec<f32>> {
+        self.stop_recording_internal(binding_id, cancel_generation, true)
+    }
+
+    /// Stop a recording immediately without applying the user-configured
+    /// trailing buffer. Safety deadlines use this path so a hard recording
+    /// limit cannot be extended by an otherwise useful release-time setting.
+    pub fn stop_recording_without_buffer(
+        &self,
+        binding_id: &str,
+        cancel_generation: u64,
+    ) -> Option<Vec<f32>> {
+        self.stop_recording_internal(binding_id, cancel_generation, false)
+    }
+
+    fn stop_recording_internal(
+        &self,
+        binding_id: &str,
+        cancel_generation: u64,
+        apply_extra_buffer: bool,
+    ) -> Option<Vec<f32>> {
         let mut state = self.state.lock().unwrap();
 
         match *state {
@@ -821,7 +841,11 @@ impl AudioRecordingManager {
                 // This is only the explicit user setting; streaming VAD must not add
                 // hidden post-release capture time.
                 let settings = get_settings(&self.app_handle);
-                let buffer_ms = settings.extra_recording_buffer_ms;
+                let buffer_ms = if apply_extra_buffer {
+                    settings.extra_recording_buffer_ms
+                } else {
+                    0
+                };
                 if buffer_ms > 0 {
                     debug!(
                         "Extra recording buffer: sleeping {}ms before stopping",

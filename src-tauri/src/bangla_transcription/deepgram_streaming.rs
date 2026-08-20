@@ -223,9 +223,6 @@ fn failure_from_abort(reason: AbortReason) -> StreamingFailure {
         AbortReason::QueueOverflow => {
             StreamingFailure::recoverable(CloudTranscriptionError::Provider)
         }
-        AbortReason::AudioTooLong => {
-            StreamingFailure::terminal(CloudTranscriptionError::AudioTooLong)
-        }
     }
 }
 
