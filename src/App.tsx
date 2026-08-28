@@ -342,7 +342,7 @@ function App() {
     content = (
       <div
         dir={direction}
-        className="h-screen flex flex-col select-none cursor-default"
+        className="h-screen flex flex-col select-none cursor-default bg-background text-text"
       >
         <ErrorBoundary context="What's New">
           <WhatsNewGate />
@@ -354,9 +354,9 @@ function App() {
             onSectionChange={setCurrentSection}
           />
           {/* Scrollable content area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden bg-background">
             <div className="flex-1 overflow-y-auto">
-              <div className="flex flex-col items-center p-4 gap-4">
+              <div className="flex flex-col items-center px-5 py-6 gap-5">
                 <AccessibilityPermissions />
                 <SecureInputWarning />
                 {renderSettingsContent(currentSection)}

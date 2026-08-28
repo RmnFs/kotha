@@ -101,7 +101,7 @@
     },
     "permissions": {
       "title": "נדרשות הרשאות",
-      "description": "Handy צריך כמה הרשאות כדי לעבוד כמו שצריך.",
+      "description": "Kotha צריך כמה הרשאות כדי לעבוד כמו שצריך.",
       "microphone": {
         "title": "גישה למיקרופון",
         "description": "נדרש כדי לשמוע את הקול שלך לצורך תמלול."
@@ -161,7 +161,7 @@
     "general": {
       "title": "כללי",
       "shortcut": {
-        "title": "קיצורי מקשים של Handy",
+        "title": "קיצורי מקשים של Kotha",
         "description": "הגדר קיצורי מקשים כדי להפעיל הקלטה ותמלול דיבור",
         "loading": "טוען קיצורי מקשים...",
         "none": "לא הוגדרו קיצורי מקשים",
@@ -220,7 +220,7 @@
       "searchPlaceholder": "חיפוש מודלים לפי שם…",
       "rescan": {
         "label": "סריקה מחדש",
-        "tooltip": "סריקה מחדש לאיתור מודלים שנוספו לתיקיית המודלים או למטמון של Hugging Face מחוץ ל-Handy"
+        "tooltip": "סריקה מחדש לאיתור מודלים שנוספו לתיקיית המודלים או למטמון של Hugging Face מחוץ ל-Kotha"
       }
     },
     "sound": {
@@ -287,11 +287,11 @@
       },
       "autostart": {
         "label": "הפעל עם עליית המערכת",
-        "description": "הפעל את Handy אוטומטית כשאתה מתחבר למחשב."
+        "description": "הפעל את Kotha אוטומטית כשאתה מתחבר למחשב."
       },
       "showTrayIcon": {
         "label": "הצג אייקון במגש",
-        "description": "הצג את האייקון של Handy במגש המערכת."
+        "description": "הצג את האייקון של Kotha במגש המערכת."
       },
       "overlay": {
         "style": {
@@ -478,7 +478,7 @@
       },
       "updateChecks": {
         "label": "בדוק עדכונים",
-        "description": "בדוק אוטומטית אם קיימות גרסאות חדשות של Handy"
+        "description": "בדוק אוטומטית אם קיימות גרסאות חדשות של Kotha"
       },
       "soundTheme": {
         "label": "ערכת צלילים",
@@ -551,7 +551,7 @@
       },
       "keyboardDiagnostic": {
         "title": "אבחון מקלדת",
-        "description": "בודק אם אירועי מקלדת מגיעים ל-Handy. נרשם רק מספר האירועים — לעולם לא אילו מקשים הקשת.",
+        "description": "בודק אם אירועי מקלדת מגיעים ל-Kotha. נרשם רק מספר האירועים — לעולם לא אילו מקשים הקשת.",
         "run": "הרצת אבחון של 10 שניות",
         "running": "מאזין… הקש על קיצור המקשים שלך כמה פעמים (למשל Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -565,7 +565,7 @@
         "mouse": "עכבר",
         "verdictBlocked": "Secure Input חוסם אירועי מקשים — קיצורים הכוללים מקש רגיל לא יוכלו לפעול עד שהבעיה תיפתר.",
         "verdictSuspicious": "הגיעו אירועים של מקשי החלפה אך לא אירועי מקשים — משהו מדכא מקשים למרות ש-Secure Input מדווח כמושבת. אנא דווח על כך ב-GitHub.",
-        "verdictOk": "אירועי מקשים מגיעים ל-Handy כרגיל.",
+        "verdictOk": "אירועי מקשים מגיעים ל-Kotha כרגיל.",
         "verdictNoEvents": "לא נקלטו אירועים — האם הקשת על מקשים במהלך הבדיקה?",
         "failed": "האבחון נכשל: {{error}}"
       },
@@ -581,11 +581,11 @@
       "title": "אודות",
       "version": {
         "title": "גרסה",
-        "description": "הגרסה הנוכחית של Handy"
+        "description": "הגרסה הנוכחית של Kotha"
       },
       "appDataDirectory": {
         "title": "תיקיית נתוני אפליקציה",
-        "description": "המיקום שבו Handy שומר את הנתונים שלו"
+        "description": "המיקום שבו Kotha שומר את הנתונים שלו"
       },
       "sourceCode": {
         "title": "קוד מקור",
@@ -594,7 +594,7 @@
       },
       "supportDevelopment": {
         "title": "תמיכה בפיתוח",
-        "description": "עזור לנו להמשיך לבנות את Handy",
+        "description": "עזור לנו להמשיך לבנות את Kotha",
         "button": "תרומה"
       },
       "acknowledgments": {
@@ -602,12 +602,12 @@
         "ggml": {
           "title": "ggml",
           "description": "הסקה מהירה לביצועים גבוהים עבור מודל זיהוי הדיבור Whisper של OpenAI",
-          "details": "Handy משתמש ב-ggml לתמלול מהיר ומקומי. תודה לעבודה המדהימה של Georgi Gerganov וכל התורמים."
+          "details": "Kotha משתמש ב-ggml לתמלול מהיר ומקומי. תודה לעבודה המדהימה של Georgi Gerganov וכל התורמים."
         }
       },
       "whatsNewUpdates": {
         "label": "הצג מה חדש",
-        "description": "הצג הערות גרסה לאחר עדכוני Handy"
+        "description": "הצג הערות גרסה לאחר עדכוני Kotha"
       }
     }
   },
@@ -640,7 +640,7 @@
     },
     "recordingLimit": {
       "title": "Two-minute recording limit reached",
-      "description": "Handy stopped recording and is processing the captured audio."
+      "description": "Kotha stopped recording and is processing the captured audio."
     },
     "romanization": {
       "title": "Romanization",
@@ -692,7 +692,7 @@
       "title": "Cloud audio disclosure",
       "description": "Bangla audio is sent to the configured cloud provider. Local English remains offline.",
       "batchDescription": "In batch mode, Bangla audio stays on this device until recording stops, then the complete recording is sent to Deepgram. Local English remains offline.",
-      "streamingDescription": "In streaming mode, Bangla audio is sent to Deepgram while you speak. The complete local recording is retained temporarily so Handy can retry once in batch mode after a recoverable streaming failure. Local English remains offline."
+      "streamingDescription": "In streaming mode, Bangla audio is sent to Deepgram while you speak. The complete local recording is retained temporarily so Kotha can retry once in batch mode after a recoverable streaming failure. Local English remains offline."
     },
     "errors": {
       "title": "Bangla Transcription Failed",
@@ -801,7 +801,7 @@
     "noOptionsFound": "לא נמצאו אפשרויות"
   },
   "accessibility": {
-    "permissionsDescription": "Handy צריך הרשאות נגישות כדי להקליד את הטקסט המתומלל.",
+    "permissionsDescription": "Kotha צריך הרשאות נגישות כדי להקליד את הטקסט המתומלל.",
     "openSettings": "פתח את הגדרות המערכת"
   },
   "errors": {
@@ -824,11 +824,11 @@
   },
   "appLanguage": {
     "title": "שפת האפליקציה",
-    "description": "שנה את שפת הממשק של Handy"
+    "description": "שנה את שפת הממשק של Kotha"
   },
   "theme": {
     "title": "ערכת נושא של האפליקציה",
-    "description": "בחר אם Handy יעקוב אחר ערכת הנושא של המערכת או יישאר בהיר או כהה",
+    "description": "בחר אם Kotha יעקוב אחר ערכת הנושא של המערכת או יישאר בהיר או כהה",
     "options": {
       "system": "מערכת",
       "light": "בהיר",
@@ -841,7 +841,7 @@
     "romanizing": "Romanizing..."
   },
   "whatsNew": {
-    "title": "חדש ב-Handy v{{version}}"
+    "title": "חדש ב-Kotha v{{version}}"
   },
   "secureInput": {
     "blockedWithCulprit_one": "ייתכן ש-{{name}} חוסם קיצור דרך אחד",

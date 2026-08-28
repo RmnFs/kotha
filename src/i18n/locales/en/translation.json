@@ -101,7 +101,7 @@
     },
     "permissions": {
       "title": "Permissions Required",
-      "description": "Handy needs a couple of permissions to work properly.",
+      "description": "Kotha needs a couple of permissions to work properly.",
       "microphone": {
         "title": "Microphone Access",
         "description": "Required to hear your voice for transcription."
@@ -161,7 +161,7 @@
     "general": {
       "title": "General",
       "shortcut": {
-        "title": "Handy Shortcuts",
+        "title": "Kotha Shortcuts",
         "description": "Configure keyboard shortcuts to trigger speech-to-text recording",
         "loading": "Loading shortcuts...",
         "none": "No shortcuts configured",
@@ -219,7 +219,7 @@
       },
       "rescan": {
         "label": "Rescan",
-        "tooltip": "Rescan for models added to the models folder or Hugging Face cache outside Handy"
+        "tooltip": "Rescan for models added to the models folder or Hugging Face cache outside Kotha"
       },
       "noModelsMatch": "No models match this filter."
     },
@@ -287,11 +287,11 @@
       },
       "autostart": {
         "label": "Launch on Startup",
-        "description": "Automatically start Handy when you log in to your computer."
+        "description": "Automatically start Kotha when you log in to your computer."
       },
       "showTrayIcon": {
         "label": "Show Tray Icon",
-        "description": "Display the Handy icon in the system tray."
+        "description": "Display the Kotha icon in the system tray."
       },
       "overlay": {
         "style": {
@@ -478,7 +478,7 @@
       },
       "updateChecks": {
         "label": "Check for Updates",
-        "description": "Automatically check for new versions of Handy"
+        "description": "Automatically check for new versions of Kotha"
       },
       "whatsNewPreview": {
         "title": "Preview What's New",
@@ -558,7 +558,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Keyboard Diagnostic",
-        "description": "Checks whether keyboard events reach Handy. Only event counts are recorded — never which keys you press.",
+        "description": "Checks whether keyboard events reach Kotha. Only event counts are recorded — never which keys you press.",
         "run": "Run 10s diagnostic",
         "running": "Listening… press your shortcut a few times (e.g. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -572,7 +572,7 @@
         "mouse": "Mouse",
         "verdictBlocked": "Secure Input is blocking key events — keyed shortcuts cannot work until it is resolved.",
         "verdictSuspicious": "Modifier events arrived but no key events — something is suppressing keys even though Secure Input reports disabled. Please report this on GitHub.",
-        "verdictOk": "Key events are reaching Handy normally.",
+        "verdictOk": "Key events are reaching Kotha normally.",
         "verdictNoEvents": "No events captured — did you press any keys during the test?",
         "failed": "Diagnostic failed: {{error}}"
       }
@@ -581,15 +581,15 @@
       "title": "About",
       "version": {
         "title": "Version",
-        "description": "Current version of Handy"
+        "description": "Current version of Kotha"
       },
       "whatsNewUpdates": {
         "label": "Show What's New",
-        "description": "Show release notes after Handy updates"
+        "description": "Show release notes after Kotha updates"
       },
       "appDataDirectory": {
         "title": "App Data Directory",
-        "description": "Location where Handy stores its data"
+        "description": "Location where Kotha stores its data"
       },
       "sourceCode": {
         "title": "Source Code",
@@ -598,7 +598,7 @@
       },
       "supportDevelopment": {
         "title": "Support Development",
-        "description": "Help us continue building Handy",
+        "description": "Help us continue building Kotha",
         "button": "Donate"
       },
       "acknowledgments": {
@@ -606,7 +606,7 @@
         "ggml": {
           "title": "ggml",
           "description": "High-performance tensor library for on-device machine learning inference",
-          "details": "Handy's local speech-to-text is built on transcribe.cpp and ggml. Thanks to the amazing work by Georgi Gerganov and contributors."
+          "details": "Kotha's local speech-to-text is built on transcribe.cpp and ggml. Thanks to the amazing work by Georgi Gerganov and contributors."
         }
       }
     }
@@ -635,12 +635,12 @@
     },
     "apiKey": {
       "title": "Deepgram API Key",
-      "description": "Your personal Deepgram API key. It is never bundled with Handy.",
+      "description": "Your personal Deepgram API key. It is never bundled with Kotha.",
       "placeholder": "Enter your Deepgram API key"
     },
     "recordingLimit": {
       "title": "Two-minute recording limit reached",
-      "description": "Handy stopped recording and is processing the captured audio."
+      "description": "Kotha stopped recording and is processing the captured audio."
     },
     "diagnostics": {
       "title": "Last Bangla diagnostic",
@@ -757,7 +757,7 @@
       "title": "Cloud audio disclosure",
       "description": "Bangla recordings are sent to the configured provider only after you stop recording. Local English transcription remains offline.",
       "batchDescription": "In batch mode, Bangla audio stays on this device until you stop recording, then the completed recording is sent to Deepgram. Local transcription shortcuts remain offline.",
-      "streamingDescription": "In streaming mode, Bangla audio is sent to Deepgram while you speak. If the live connection fails, Handy may resend the completed recording once using batch transcription. Local transcription shortcuts remain offline."
+      "streamingDescription": "In streaming mode, Bangla audio is sent to Deepgram while you speak. If the live connection fails, Kotha may resend the completed recording once using batch transcription. Local transcription shortcuts remain offline."
     },
     "errors": {
       "title": "Bangla Transcription Failed",
@@ -792,7 +792,7 @@
     "portableUpdateBrowseButton": "Open GitHub Releases"
   },
   "whatsNew": {
-    "title": "New in Handy v{{version}}"
+    "title": "New in Kotha v{{version}}"
   },
   "common": {
     "loading": "Loading...",
@@ -804,7 +804,7 @@
     "noOptionsFound": "No options found"
   },
   "accessibility": {
-    "permissionsDescription": "Handy needs accessibility permissions to type transcribed text.",
+    "permissionsDescription": "Kotha needs accessibility permissions to type transcribed text.",
     "openSettings": "Open System Settings"
   },
   "errors": {
@@ -827,11 +827,11 @@
   },
   "appLanguage": {
     "title": "Application Language",
-    "description": "Change the language of the Handy interface"
+    "description": "Change the language of the Kotha interface"
   },
   "theme": {
     "title": "Application Theme",
-    "description": "Choose whether Handy follows your system theme or stays light or dark",
+    "description": "Choose whether Kotha follows your system theme or stays light or dark",
     "options": {
       "system": "System",
       "light": "Light",

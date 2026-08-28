@@ -112,22 +112,22 @@ const ModelCard: React.FC<ModelCardProps> = ({
   );
 
   const baseClasses =
-    "flex flex-col rounded-xl px-4 py-3 gap-2 text-left transition-all duration-200";
+    "flex flex-col rounded-2xl px-4 py-3 gap-2 text-left bg-surface transition-[background-color,border-color,transform] duration-150";
 
   const getVariantClasses = () => {
     if (status === "active") {
-      return "border-2 border-logo-primary/50 bg-logo-primary/10";
+      return "border border-logo-primary bg-logo-primary/10";
     }
     if (isFeatured) {
-      return "border-2 border-logo-primary/25 bg-logo-primary/5";
+      return "border border-brand-earth/60 bg-brand-earth/5";
     }
-    return "border-2 border-mid-gray/20";
+    return "border border-border";
   };
 
   const getInteractiveClasses = () => {
     if (!isClickable) return "";
     if (disabled) return "opacity-50 cursor-not-allowed";
-    return "cursor-pointer hover:border-logo-primary/50 hover:bg-logo-primary/5 hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] group";
+    return "cursor-pointer hover:border-logo-primary hover:bg-logo-primary/5 active:scale-[0.995] group";
   };
 
   const handleClick = () => {
@@ -192,7 +192,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
               </Badge>
             )}
           </div>
-          <p className="text-text/60 text-sm leading-relaxed">
+          <p className="text-mid-gray text-sm leading-relaxed">
             {displayDescription}
           </p>
         </div>
@@ -200,7 +200,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
           <div className="hidden sm:flex items-center ms-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <p className="text-xs text-text/60 w-24 text-end">
+                <p className="text-xs text-mid-gray w-24 text-end">
                   {t("onboarding.modelCard.accuracy")}
                 </p>
                 <div className="w-16 h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
@@ -211,7 +211,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <p className="text-xs text-text/60 w-24 text-end">
+                <p className="text-xs text-mid-gray w-24 text-end">
                   {t("onboarding.modelCard.speed")}
                 </p>
                 <div className="w-16 h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">

@@ -101,7 +101,7 @@
     },
     "permissions": {
       "title": "Необходими разрешения",
-      "description": "Handy се нуждае от няколко разрешения, за да работи правилно.",
+      "description": "Kotha се нуждае от няколко разрешения, за да работи правилно.",
       "microphone": {
         "title": "Достъп до микрофон",
         "description": "Необходим е, за да чуе гласа ви при транскрипция."
@@ -161,7 +161,7 @@
     "general": {
       "title": "Общи",
       "shortcut": {
-        "title": "Бързи клавиши на Handy",
+        "title": "Бързи клавиши на Kotha",
         "description": "Настройте клавишни комбинации за стартиране на запис за реч към текст",
         "loading": "Зареждане на бързите клавиши...",
         "none": "Няма настроени бързи клавиши",
@@ -220,7 +220,7 @@
       "searchPlaceholder": "Търсене на модели по име…",
       "rescan": {
         "label": "Сканиране отново",
-        "tooltip": "Сканиране отново за модели, добавени в папката с модели или кеша на Hugging Face извън Handy"
+        "tooltip": "Сканиране отново за модели, добавени в папката с модели или кеша на Hugging Face извън Kotha"
       }
     },
     "sound": {
@@ -287,11 +287,11 @@
       },
       "autostart": {
         "label": "Стартиране със системата",
-        "description": "Автоматично стартиране на Handy при влизане в профила ви."
+        "description": "Автоматично стартиране на Kotha при влизане в профила ви."
       },
       "showTrayIcon": {
         "label": "Икона в системната област",
-        "description": "Показване на иконата на Handy в системната област."
+        "description": "Показване на иконата на Kotha в системната област."
       },
       "overlay": {
         "style": {
@@ -478,7 +478,7 @@
       },
       "updateChecks": {
         "label": "Проверка за актуализации",
-        "description": "Автоматична проверка за нови версии на Handy"
+        "description": "Автоматична проверка за нови версии на Kotha"
       },
       "soundTheme": {
         "label": "Звукова тема",
@@ -551,7 +551,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Диагностика на клавиатурата",
-        "description": "Проверява дали клавиатурните събития достигат до Handy. Записва се само броят на събитията — никога кои клавиши натискате.",
+        "description": "Проверява дали клавиатурните събития достигат до Kotha. Записва се само броят на събитията — никога кои клавиши натискате.",
         "run": "Стартиране на 10-секундна диагностика",
         "running": "Слушане… натиснете бързия си клавиш няколко пъти (напр. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -565,7 +565,7 @@
         "mouse": "Мишка",
         "verdictBlocked": "Secure Input блокира клавишните събития — бързите клавиши с обикновен клавиш не могат да работят, докато това не бъде решено.",
         "verdictSuspicious": "Пристигнаха събития от модификатори, но нито едно клавишно събитие — нещо потиска клавишите, въпреки че Secure Input се отчита като изключен. Моля, съобщете за това в GitHub.",
-        "verdictOk": "Клавишните събития достигат до Handy нормално.",
+        "verdictOk": "Клавишните събития достигат до Kotha нормално.",
         "verdictNoEvents": "Не са уловени събития — натиснахте ли някакви клавиши по време на теста?",
         "failed": "Диагностиката е неуспешна: {{error}}"
       },
@@ -581,11 +581,11 @@
       "title": "За приложението",
       "version": {
         "title": "Версия",
-        "description": "Текуща версия на Handy"
+        "description": "Текуща версия на Kotha"
       },
       "appDataDirectory": {
         "title": "Папка с данни на приложението",
-        "description": "Мястото, където Handy съхранява данните си"
+        "description": "Мястото, където Kotha съхранява данните си"
       },
       "sourceCode": {
         "title": "Изходен код",
@@ -594,7 +594,7 @@
       },
       "supportDevelopment": {
         "title": "Подкрепете разработката",
-        "description": "Помогнете ни да продължим да развиваме Handy",
+        "description": "Помогнете ни да продължим да развиваме Kotha",
         "button": "Дарение"
       },
       "acknowledgments": {
@@ -602,12 +602,12 @@
         "ggml": {
           "title": "ggml",
           "description": "Високопроизводително изпълнение на автоматичния модел за разпознаване на реч Whisper на OpenAI",
-          "details": "Handy използва ggml за бързо локално реч-към-текст. Благодарности на Georgi Gerganov и сътрудниците за отличната работа."
+          "details": "Kotha използва ggml за бързо локално реч-към-текст. Благодарности на Georgi Gerganov и сътрудниците за отличната работа."
         }
       },
       "whatsNewUpdates": {
         "label": "Показвай новостите",
-        "description": "Показвай бележки към изданието след актуализации на Handy"
+        "description": "Показвай бележки към изданието след актуализации на Kotha"
       }
     }
   },
@@ -640,7 +640,7 @@
     },
     "recordingLimit": {
       "title": "Two-minute recording limit reached",
-      "description": "Handy stopped recording and is processing the captured audio."
+      "description": "Kotha stopped recording and is processing the captured audio."
     },
     "romanization": {
       "title": "Romanization",
@@ -692,7 +692,7 @@
       "title": "Cloud audio disclosure",
       "description": "Bangla audio is sent to the configured cloud provider. Local English remains offline.",
       "batchDescription": "In batch mode, Bangla audio stays on this device until recording stops, then the complete recording is sent to Deepgram. Local English remains offline.",
-      "streamingDescription": "In streaming mode, Bangla audio is sent to Deepgram while you speak. The complete local recording is retained temporarily so Handy can retry once in batch mode after a recoverable streaming failure. Local English remains offline."
+      "streamingDescription": "In streaming mode, Bangla audio is sent to Deepgram while you speak. The complete local recording is retained temporarily so Kotha can retry once in batch mode after a recoverable streaming failure. Local English remains offline."
     },
     "errors": {
       "title": "Bangla Transcription Failed",
@@ -801,7 +801,7 @@
     "noOptionsFound": "Няма намерени опции"
   },
   "accessibility": {
-    "permissionsDescription": "Handy се нуждае от разрешения за достъпност, за да въвежда транскрибирания текст.",
+    "permissionsDescription": "Kotha се нуждае от разрешения за достъпност, за да въвежда транскрибирания текст.",
     "openSettings": "Отваряне на системните настройки"
   },
   "errors": {
@@ -824,11 +824,11 @@
   },
   "appLanguage": {
     "title": "Език на приложението",
-    "description": "Промяна на езика на интерфейса на Handy"
+    "description": "Промяна на езика на интерфейса на Kotha"
   },
   "theme": {
     "title": "Тема на приложението",
-    "description": "Изберете дали Handy да следва системната тема, или да остане светла или тъмна",
+    "description": "Изберете дали Kotha да следва системната тема, или да остане светла или тъмна",
     "options": {
       "system": "Системна",
       "light": "Светла",
@@ -841,7 +841,7 @@
     "romanizing": "Romanizing..."
   },
   "whatsNew": {
-    "title": "Ново в Handy v{{version}}"
+    "title": "Ново в Kotha v{{version}}"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} може да блокира 1 бърз клавиш",

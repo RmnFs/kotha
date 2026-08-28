@@ -144,10 +144,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col p-6 gap-4 inset-0">
-      <div className="flex flex-col items-center gap-2 shrink-0">
-        <HandyTextLogo width={200} />
-        <p className="text-text/70 max-w-md font-medium mx-auto">
+    <div className="h-screen w-screen flex flex-col px-6 py-7 gap-5 inset-0 bg-background">
+      <div className="flex flex-col items-center gap-3 shrink-0">
+        <HandyTextLogo width={224} />
+        <p className="text-mid-gray max-w-md font-medium mx-auto text-center">
           {t("onboarding.subtitle")}
         </p>
       </div>

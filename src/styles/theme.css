@@ -1,18 +1,34 @@
-/* Handy Colors */
+/* Kotha Colors */
 
 :root {
-  /* Palette source of truth. Each themed color is defined once as a
-     light/dark pair; the active tokens below and the `data-theme` overrides
-     in App.css reference these, so a hex value lives in exactly one place. */
-  --light-color-text: #0f0f0f;
-  --light-color-background: #fbfbfb;
-  --light-color-logo-primary: #faa2ca;
-  --light-color-logo-stroke: #382731;
+  /* The supplied Kotha wordmark is the palette authority: forest green moves
+     through earthen brown into vermilion. Warm paper and ink neutrals keep the
+     settings UI calm while those colors carry identity and state. */
+  --light-color-text: #182019;
+  --light-color-background: #f4eee4;
+  --light-color-surface: #fffaf2;
+  --light-color-surface-raised: #fffdf9;
+  --light-color-border: #d8cdbd;
+  --light-color-mid-gray: #626a61;
+  --light-color-logo-primary: #b74732;
+  --light-color-logo-stroke: #315b3d;
+  --light-color-background-ui: #96392d;
+  --light-color-brand-green: #315b3d;
+  --light-color-brand-earth: #835f3f;
+  --light-color-brand-vermilion: #b74732;
 
-  --dark-color-text: #fbfbfb;
-  --dark-color-background: #2c2b29;
-  --dark-color-logo-primary: #f28cbb;
-  --dark-color-logo-stroke: #fad1ed;
+  --dark-color-text: #f4efe7;
+  --dark-color-background: #171a17;
+  --dark-color-surface: #20251f;
+  --dark-color-surface-raised: #282e27;
+  --dark-color-border: #3c453b;
+  --dark-color-mid-gray: #aab1a7;
+  --dark-color-logo-primary: #df765e;
+  --dark-color-logo-stroke: #83a28a;
+  --dark-color-background-ui: #a84435;
+  --dark-color-brand-green: #83a28a;
+  --dark-color-brand-earth: #c49a6b;
+  --dark-color-brand-vermilion: #df765e;
 
   /* Semantic status colors. First used by SecureInputWarning; intended to
      replace the ad-hoc yellow-500/red-500 usages (e.g. ui/Alert.tsx) over
@@ -22,17 +38,22 @@
   --dark-color-warning: #fbbf24;
   --dark-color-error: #f87171;
 
-  /* Tokens that do not change between light and dark */
-  --color-background-ui: #da5893;
   --color-text-stroke: #f6f6f6;
-  --color-mid-gray: #808080;
 
   /* Active palette — defaults to light, follows the OS via the media query
      below, or is forced by `data-theme` (see the overrides below). */
   --color-text: var(--light-color-text);
   --color-background: var(--light-color-background);
+  --color-surface: var(--light-color-surface);
+  --color-surface-raised: var(--light-color-surface-raised);
+  --color-border: var(--light-color-border);
+  --color-mid-gray: var(--light-color-mid-gray);
   --color-logo-primary: var(--light-color-logo-primary);
   --color-logo-stroke: var(--light-color-logo-stroke);
+  --color-background-ui: var(--light-color-background-ui);
+  --color-brand-green: var(--light-color-brand-green);
+  --color-brand-earth: var(--light-color-brand-earth);
+  --color-brand-vermilion: var(--light-color-brand-vermilion);
   --color-warning: var(--light-color-warning);
   --color-error: var(--light-color-error);
 }
@@ -41,8 +62,16 @@
   :root {
     --color-text: var(--dark-color-text);
     --color-background: var(--dark-color-background);
+    --color-surface: var(--dark-color-surface);
+    --color-surface-raised: var(--dark-color-surface-raised);
+    --color-border: var(--dark-color-border);
+    --color-mid-gray: var(--dark-color-mid-gray);
     --color-logo-primary: var(--dark-color-logo-primary);
     --color-logo-stroke: var(--dark-color-logo-stroke);
+    --color-background-ui: var(--dark-color-background-ui);
+    --color-brand-green: var(--dark-color-brand-green);
+    --color-brand-earth: var(--dark-color-brand-earth);
+    --color-brand-vermilion: var(--dark-color-brand-vermilion);
     --color-warning: var(--dark-color-warning);
     --color-error: var(--dark-color-error);
   }
@@ -61,17 +90,35 @@
 :root[data-theme="light"] {
   --color-text: var(--light-color-text);
   --color-background: var(--light-color-background);
+  --color-surface: var(--light-color-surface);
+  --color-surface-raised: var(--light-color-surface-raised);
+  --color-border: var(--light-color-border);
+  --color-mid-gray: var(--light-color-mid-gray);
   --color-logo-primary: var(--light-color-logo-primary);
   --color-logo-stroke: var(--light-color-logo-stroke);
+  --color-background-ui: var(--light-color-background-ui);
+  --color-brand-green: var(--light-color-brand-green);
+  --color-brand-earth: var(--light-color-brand-earth);
+  --color-brand-vermilion: var(--light-color-brand-vermilion);
   --color-warning: var(--light-color-warning);
   --color-error: var(--light-color-error);
+  color-scheme: light;
 }
 
 :root[data-theme="dark"] {
   --color-text: var(--dark-color-text);
   --color-background: var(--dark-color-background);
+  --color-surface: var(--dark-color-surface);
+  --color-surface-raised: var(--dark-color-surface-raised);
+  --color-border: var(--dark-color-border);
+  --color-mid-gray: var(--dark-color-mid-gray);
   --color-logo-primary: var(--dark-color-logo-primary);
   --color-logo-stroke: var(--dark-color-logo-stroke);
+  --color-background-ui: var(--dark-color-background-ui);
+  --color-brand-green: var(--dark-color-brand-green);
+  --color-brand-earth: var(--dark-color-brand-earth);
+  --color-brand-vermilion: var(--dark-color-brand-vermilion);
   --color-warning: var(--dark-color-warning);
   --color-error: var(--dark-color-error);
+  color-scheme: dark;
 }

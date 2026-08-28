@@ -20,15 +20,15 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseClasses =
-    "font-medium rounded-lg border focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
+    "font-semibold rounded-xl border focus:outline-none transition-[background-color,border-color,color] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
 
   const variantClasses = {
     primary:
-      "text-white bg-background-ui border-background-ui hover:bg-background-ui/80 hover:border-background-ui/80 focus:ring-1 focus:ring-background-ui",
+      "text-white bg-background-ui border-background-ui hover:bg-logo-primary hover:border-logo-primary focus:ring-2 focus:ring-logo-primary/25",
     "primary-soft":
       "text-text bg-logo-primary/20 border-transparent hover:bg-logo-primary/30 focus:ring-1 focus:ring-logo-primary",
     secondary:
-      "bg-mid-gray/10 border-mid-gray/20 hover:bg-background-ui/30 hover:border-logo-primary focus:outline-none",
+      "bg-surface-raised border-border hover:bg-brand-green/10 hover:border-brand-green focus:ring-2 focus:ring-brand-green/20",
     // Secondary's neutral resting look, but hover/focus use the semantic
     // --color-warning token (theme.css) instead of the pink accent — for
     // buttons sitting on warning surfaces like SecureInputWarning

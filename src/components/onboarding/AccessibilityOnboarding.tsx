@@ -306,9 +306,9 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
 
   // Show permissions request screen
   return (
-    <div className="h-screen w-screen flex flex-col p-6 gap-6 items-center justify-center">
+    <div className="h-screen w-screen flex flex-col p-6 gap-6 items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-2">
-        <HandyTextLogo width={200} />
+        <HandyTextLogo width={224} />
       </div>
 
       <div className="max-w-md w-full flex flex-col items-center gap-4">
@@ -323,7 +323,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
 
         {/* Microphone Permission Card */}
         {showMicrophonePermission && (
-          <div className="w-full p-4 rounded-lg bg-white/5 border border-mid-gray/20">
+          <div className="w-full p-4 rounded-2xl bg-surface border border-border">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-full bg-logo-primary/20 shrink-0">
                 <Mic className="w-6 h-6 text-logo-primary" />
@@ -332,7 +332,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                 <h3 className="font-medium text-text">
                   {t("onboarding.permissions.microphone.title")}
                 </h3>
-                <p className="text-sm text-text/60 mb-3">
+                <p className="text-sm text-mid-gray mb-3">
                   {t("onboarding.permissions.microphone.description")}
                 </p>
                 {permissions.microphone === "granted" ? (
@@ -348,7 +348,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                 ) : (
                   <button
                     onClick={handleGrantMicrophone}
-                    className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium transition-colors"
+                    className="px-4 py-2 rounded-xl bg-background-ui hover:bg-logo-primary text-white text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary/25"
                   >
                     {isWindows
                       ? t("accessibility.openSettings")
@@ -362,7 +362,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
 
         {/* Accessibility Permission Card */}
         {showAccessibilityPermission && (
-          <div className="w-full p-4 rounded-lg bg-white/5 border border-mid-gray/20">
+          <div className="w-full p-4 rounded-2xl bg-surface border border-border">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-full bg-logo-primary/20 shrink-0">
                 <Keyboard className="w-6 h-6 text-logo-primary" />
@@ -371,7 +371,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                 <h3 className="font-medium text-text">
                   {t("onboarding.permissions.accessibility.title")}
                 </h3>
-                <p className="text-sm text-text/60 mb-3">
+                <p className="text-sm text-mid-gray mb-3">
                   {t("onboarding.permissions.accessibility.description")}
                 </p>
                 {permissions.accessibility === "granted" ? (
@@ -387,7 +387,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                 ) : (
                   <button
                     onClick={handleGrantAccessibility}
-                    className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium transition-colors"
+                    className="px-4 py-2 rounded-xl bg-background-ui hover:bg-logo-primary text-white text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary/25"
                   >
                     {t("onboarding.permissions.grant")}
                   </button>

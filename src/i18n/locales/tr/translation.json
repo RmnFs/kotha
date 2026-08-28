@@ -101,7 +101,7 @@
     },
     "permissions": {
       "title": "İzinler Gerekli",
-      "description": "Handy'nin düzgün çalışabilmesi için birkaç izne ihtiyacı var.",
+      "description": "Kotha'nin düzgün çalışabilmesi için birkaç izne ihtiyacı var.",
       "microphone": {
         "title": "Mikrofon Erişimi",
         "description": "Sesinizi transkripsiyon için alabilmek için gereklidir."
@@ -175,13 +175,13 @@
       "searchPlaceholder": "Modelleri ada göre ara…",
       "rescan": {
         "label": "Yeniden Tara",
-        "tooltip": "Handy dışında modeller klasörüne veya Hugging Face önbelleğine eklenen modelleri yeniden tara"
+        "tooltip": "Kotha dışında modeller klasörüne veya Hugging Face önbelleğine eklenen modelleri yeniden tara"
       }
     },
     "general": {
       "title": "Genel",
       "shortcut": {
-        "title": "Handy Kısayolları",
+        "title": "Kotha Kısayolları",
         "description": "Sesle yazma kaydını başlatmak için klavye kısayollarını yapılandırın",
         "loading": "Kısayollar yükleniyor...",
         "none": "Kısayol yapılandırılmadı",
@@ -287,11 +287,11 @@
       },
       "autostart": {
         "label": "Başlangıçta Çalıştır",
-        "description": "Bilgisayara giriş yaptığınızda Handy otomatik olarak başlatılır."
+        "description": "Bilgisayara giriş yaptığınızda Kotha otomatik olarak başlatılır."
       },
       "showTrayIcon": {
         "label": "Tepsi Simgesini Göster",
-        "description": "Handy simgesini sistem tepsisinde göster."
+        "description": "Kotha simgesini sistem tepsisinde göster."
       },
       "overlay": {
         "style": {
@@ -478,7 +478,7 @@
       },
       "updateChecks": {
         "label": "Güncellemeleri Kontrol Et",
-        "description": "Handy için yeni sürümleri otomatik olarak kontrol eder"
+        "description": "Kotha için yeni sürümleri otomatik olarak kontrol eder"
       },
       "soundTheme": {
         "label": "Ses Teması",
@@ -551,7 +551,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Klavye Tanılaması",
-        "description": "Klavye olaylarının Handy'ye ulaşıp ulaşmadığını denetler. Yalnızca olay sayıları kaydedilir — hangi tuşlara bastığınız asla kaydedilmez.",
+        "description": "Klavye olaylarının Kotha'ye ulaşıp ulaşmadığını denetler. Yalnızca olay sayıları kaydedilir — hangi tuşlara bastığınız asla kaydedilmez.",
         "run": "10 sn'lik tanılamayı çalıştır",
         "running": "Dinleniyor… kısayolunuza birkaç kez basın (ör. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -565,7 +565,7 @@
         "mouse": "Fare",
         "verdictBlocked": "Secure Input tuş olaylarını engelliyor — normal tuş içeren kısayollar bu sorun çözülene kadar çalışamaz.",
         "verdictSuspicious": "Değiştirici olayları geldi ancak hiç tuş olayı gelmedi — Secure Input devre dışı görünmesine rağmen bir şey tuşları bastırıyor. Lütfen bunu GitHub'da bildirin.",
-        "verdictOk": "Tuş olayları Handy'ye normal şekilde ulaşıyor.",
+        "verdictOk": "Tuş olayları Kotha'ye normal şekilde ulaşıyor.",
         "verdictNoEvents": "Hiç olay yakalanmadı — test sırasında herhangi bir tuşa bastınız mı?",
         "failed": "Tanılama başarısız: {{error}}"
       },
@@ -581,11 +581,11 @@
       "title": "Hakkında",
       "version": {
         "title": "Sürüm",
-        "description": "Handy'nin mevcut sürümü"
+        "description": "Kotha'nin mevcut sürümü"
       },
       "appDataDirectory": {
         "title": "Uygulama Veri Dizini",
-        "description": "Handy'nin verilerini sakladığı konum"
+        "description": "Kotha'nin verilerini sakladığı konum"
       },
       "sourceCode": {
         "title": "Kaynak Kodu",
@@ -594,7 +594,7 @@
       },
       "supportDevelopment": {
         "title": "Geliştirmeyi Destekle",
-        "description": "Handy'yi geliştirmeye devam etmemize yardımcı olun",
+        "description": "Kotha'yi geliştirmeye devam etmemize yardımcı olun",
         "button": "Bağış Yap"
       },
       "acknowledgments": {
@@ -602,12 +602,12 @@
         "ggml": {
           "title": "ggml",
           "description": "OpenAI'nin Whisper otomatik konuşma tanıma modelinin yüksek performanslı çıkarımı",
-          "details": "Handy, hızlı ve yerel konuşmadan metne dönüştürme için ggml kullanır. Georgi Gerganov ve katkıda bulunanların harika çalışmaları için teşekkür ederiz."
+          "details": "Kotha, hızlı ve yerel konuşmadan metne dönüştürme için ggml kullanır. Georgi Gerganov ve katkıda bulunanların harika çalışmaları için teşekkür ederiz."
         }
       },
       "whatsNewUpdates": {
         "label": "Yenilikleri Göster",
-        "description": "Handy güncellemelerinden sonra sürüm notlarını göster"
+        "description": "Kotha güncellemelerinden sonra sürüm notlarını göster"
       }
     }
   },
@@ -640,7 +640,7 @@
     },
     "recordingLimit": {
       "title": "Two-minute recording limit reached",
-      "description": "Handy stopped recording and is processing the captured audio."
+      "description": "Kotha stopped recording and is processing the captured audio."
     },
     "romanization": {
       "title": "Romanization",
@@ -692,7 +692,7 @@
       "title": "Cloud audio disclosure",
       "description": "Bangla audio is sent to the configured cloud provider. Local English remains offline.",
       "batchDescription": "In batch mode, Bangla audio stays on this device until recording stops, then the complete recording is sent to Deepgram. Local English remains offline.",
-      "streamingDescription": "In streaming mode, Bangla audio is sent to Deepgram while you speak. The complete local recording is retained temporarily so Handy can retry once in batch mode after a recoverable streaming failure. Local English remains offline."
+      "streamingDescription": "In streaming mode, Bangla audio is sent to Deepgram while you speak. The complete local recording is retained temporarily so Kotha can retry once in batch mode after a recoverable streaming failure. Local English remains offline."
     },
     "errors": {
       "title": "Bangla Transcription Failed",
@@ -801,7 +801,7 @@
     "noOptionsFound": "Seçenek bulunamadı"
   },
   "accessibility": {
-    "permissionsDescription": "Handy, transkribe edilen metni yazabilmek için erişilebilirlik izinlerine ihtiyaç duyar.",
+    "permissionsDescription": "Kotha, transkribe edilen metni yazabilmek için erişilebilirlik izinlerine ihtiyaç duyar.",
     "openSettings": "Sistem Ayarlarını Aç"
   },
   "errors": {
@@ -824,11 +824,11 @@
   },
   "appLanguage": {
     "title": "Uygulama Dili",
-    "description": "Handy arayüzünün dilini değiştirin"
+    "description": "Kotha arayüzünün dilini değiştirin"
   },
   "theme": {
     "title": "Uygulama Teması",
-    "description": "Handy'nin sistem temasını izlemesini ya da açık veya koyu kalmasını seçin",
+    "description": "Kotha'nin sistem temasını izlemesini ya da açık veya koyu kalmasını seçin",
     "options": {
       "system": "Sistem",
       "light": "Açık",
@@ -841,7 +841,7 @@
     "romanizing": "Romanizing..."
   },
   "whatsNew": {
-    "title": "Handy v{{version}} yenilikleri"
+    "title": "Kotha v{{version}} yenilikleri"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} 1 kısayolu engelliyor olabilir",
