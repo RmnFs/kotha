@@ -1,0 +1,41 @@
+name: Checks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run lint
+      - run: bun run format:check
+
+  rust:
+    name: Rust
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libasound2-dev libssl-dev libgtk-layer-shell-dev libvulkan-dev glslc spirv-headers
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+      - name: Check formatting
+        working-directory: src-tauri
+        run: cargo fmt -- --check
+      - name: Run tests
+        working-directory: src-tauri
+        run: cargo test

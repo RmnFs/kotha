@@ -1,6 +1,6 @@
 import React from "react";
 
-const HandyTextLogo = ({
+const KothaWordmark = ({
   width,
   height,
   className,
@@ -21,4 +21,4 @@ const HandyTextLogo = ({
   );
 };
 
-export default HandyTextLogo;
+export default KothaWordmark;

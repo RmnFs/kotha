@@ -13,10 +13,6 @@ use tauri_specta::Event;
 /// Database migrations for transcription history.
 /// Each migration is applied in order. The library tracks which migrations
 /// have been applied using SQLite's user_version pragma.
-///
-/// Note: For users upgrading from tauri-plugin-sql, migrate_from_tauri_plugin_sql()
-/// converts the old _sqlx_migrations table tracking to the user_version pragma,
-/// ensuring migrations don't re-run on existing databases.
 static MIGRATIONS: &[M] = &[
     M::up(
         "CREATE TABLE IF NOT EXISTS transcription_history (
@@ -101,10 +97,6 @@ impl HistoryManager {
 
         let mut conn = Connection::open(&self.db_path)?;
 
-        // Handle migration from tauri-plugin-sql to rusqlite_migration
-        // tauri-plugin-sql used _sqlx_migrations table, rusqlite_migration uses user_version pragma
-        self.migrate_from_tauri_plugin_sql(&conn)?;
-
         // Create migrations object and run to latest version
         let migrations = Migrations::new(MIGRATIONS.to_vec());
 
@@ -130,63 +122,6 @@ impl HistoryManager {
             );
         } else {
             debug!("Database already at latest version {}", version_after);
-        }
-
-        Ok(())
-    }
-
-    /// Migrate from tauri-plugin-sql's migration tracking to rusqlite_migration's.
-    /// tauri-plugin-sql used a _sqlx_migrations table, while rusqlite_migration uses
-    /// SQLite's user_version pragma. This function checks if the old system was in use
-    /// and sets the user_version accordingly so migrations don't re-run.
-    fn migrate_from_tauri_plugin_sql(&self, conn: &Connection) -> Result<()> {
-        // Check if the old _sqlx_migrations table exists
-        let has_sqlx_migrations: bool = conn
-            .query_row(
-                "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name='_sqlx_migrations'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap_or(false);
-
-        if !has_sqlx_migrations {
-            return Ok(());
-        }
-
-        // Check current user_version
-        let current_version: i32 =
-            conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
-
-        if current_version > 0 {
-            // Already migrated to rusqlite_migration system
-            return Ok(());
-        }
-
-        // Get the highest version from the old migrations table
-        let old_version: i32 = conn
-            .query_row(
-                "SELECT COALESCE(MAX(version), 0) FROM _sqlx_migrations WHERE success = 1",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
-
-        if old_version > 0 {
-            info!(
-                "Migrating from tauri-plugin-sql (version {}) to rusqlite_migration",
-                old_version
-            );
-
-            // Set user_version to match the old migration state
-            conn.pragma_update(None, "user_version", old_version)?;
-
-            // Optionally drop the old migrations table (keeping it doesn't hurt)
-            // conn.execute("DROP TABLE IF EXISTS _sqlx_migrations", [])?;
-
-            info!(
-                "Migration tracking converted: user_version set to {}",
-                old_version
-            );
         }
 
         Ok(())
@@ -686,7 +621,7 @@ mod tests {
                 post_process_requested
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
-                format!("handy-{}.wav", timestamp),
+                format!("kotha-{}.wav", timestamp),
                 timestamp,
                 false,
                 format!("Recording {}", timestamp),

@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Create a report to help us improve Handy
+about: Report a reproducible problem in Kotha
 title: "[BUG] "
 labels: ["bug"]
 assignees: ""
@@ -8,11 +8,11 @@ assignees: ""
 
 ## Before You Submit
 
-**Please search [existing issues](https://github.com/cjpais/Handy/issues) to avoid duplicates.** Your bug may already be reported! Right now it's just me maintaining this project so many issues can be overwhelming! Help me out by checking first.
+Please search [existing issues](https://github.com/RmnFs/kotha/issues) before opening a new report.
 
 ## Bug Description
 
-A clear and concise description of what the bug is.
+Describe what happened, what you expected, and the shortest sequence that reproduces the problem.
 
 ## System Information
 
@@ -34,4 +34,4 @@ A clear and concise description of what the bug is.
 
 ## Logs
 
-<!-- Please attach relevant logs to help us diagnose the issue. You can find the log directory by going to Settings > About in the app. -->
+<!-- Attach relevant logs from Settings > About > Log Directory. Remove transcript text, API keys, and other private content first. -->

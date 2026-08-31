@@ -109,7 +109,7 @@ The system is compact, border-led, and operational. Familiar rounded controls, o
 - A forest-to-earth-to-vermilion brand movement inherited from the approved Kotha artwork.
 - Compact controls with generous enough targets, clear focus, and restrained motion.
 - Flat surfaces at rest; depth is reserved for transient UI.
-- The original Handy runtime contracts remain visually invisible and functionally unchanged.
+- Kotha's runtime contracts remain visually invisible and functionally stable.
 
 **The Wordmark Leads Rule.** Preserve the approved wave, calligraphic K, terminal accent, lettering proportions, and color movement. Do not redraw the brand from generic type or substitute a stock microphone mark.
 
@@ -167,7 +167,7 @@ The palette behaves like ink on warm paper in light mode and warm light on charc
 
 The settings window is a full-height flex shell with a fixed narrow sidebar (`176px`) and one scrollable content column. The sidebar carries the wordmark in an `80px` header band, then stacks `40px`-minimum navigation items. Content uses `20px` horizontal and `24px` vertical insets with `20px` gaps between major blocks.
 
-Spacing follows a compact 4px-derived rhythm. Settings rows use `12px 16px` padding and a `56px` minimum height; related rows share one outlined group rather than repeating separate cards. RTL mirrors logical edges and toggle movement without changing hierarchy.
+Spacing follows a compact 4px-derived rhythm. Settings rows use `12px 16px` padding and a `56px` minimum height; related rows share one outlined group rather than repeating separate cards.
 
 **The One Working Column Rule.** Keep one primary settings column in the remaining window; do not convert operational preferences into a dashboard grid.
 
@@ -227,7 +227,7 @@ The `176px` sidebar is a Quiet Sheet bounded by one logical-end hairline. Items 
 
 ### Toggle Switch
 
-The switch is a `44px × 24px` full pill with a `20px` white thumb. Off uses a muted translucent track; on uses Grounded Action. Focus expands as a clear brand ring, and RTL reverses thumb travel.
+The switch is a `44px × 24px` full pill with a `20px` white thumb. Off uses a muted translucent track; on uses Grounded Action. Focus expands as a clear brand ring.
 
 ### Recording Overlay
 
@@ -240,7 +240,7 @@ The overlay is the signature state component: a flat, near-opaque themed surface
 - **Do** source all reusable color from `src/styles/theme.css` and keep light, dark, system, and explicit overrides aligned.
 - **Do** let the Kotha wordmark anchor the sidebar and preserve generous clear space around it.
 - **Do** reserve the solid Grounded Action field for the primary or active task.
-- **Do** retain visible keyboard focus, logical RTL edges, localized copy tolerance, and familiar desktop-control behavior.
+- **Do** retain visible keyboard focus and familiar desktop-control behavior.
 - **Do** use the Forest–Earth–Vermilion sequence when a component represents voice movement, especially the waveform.
 
 ### Don't:
@@ -249,4 +249,4 @@ The overlay is the signature state component: a flat, near-opaque themed surface
 - **Don't** reintroduce the discarded generic pink utility palette or component-local brand hex values.
 - **Don't** turn the settings window into a card dashboard, marketing surface, or decorative showcase.
 - **Don't** add gradients, glass blur, or resting shadows to persistent controls and containers.
-- **Don't** rename internal Handy identifiers, bundle/storage paths, updater contracts, settings keys, shortcut IDs, or backend events as part of visual work.
+- **Don't** change runtime identifiers, storage paths, settings keys, shortcut IDs, or backend events as incidental visual work.

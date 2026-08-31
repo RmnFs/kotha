@@ -6,7 +6,7 @@ Add user-facing release notes as Markdown files named by app version:
 src/content/release-notes/0.8.4.md
 ```
 
-The update modal shows the highest bundled release note newer than the
+The What's New modal shows the highest bundled release note newer than the
 persisted `whats_new_last_seen_version` and not newer than the running app
 version.
 

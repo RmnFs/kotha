@@ -87,8 +87,6 @@ const settingUpdaters: {
   start_hidden: (value) => commands.changeStartHiddenSetting(value as boolean),
   autostart_enabled: (value) =>
     commands.changeAutostartSetting(value as boolean),
-  update_checks_enabled: (value) =>
-    commands.changeUpdateChecksSetting(value as boolean),
   show_whats_new_on_update: (value) =>
     commands.changeShowWhatsNewOnUpdateSetting(value as boolean),
   whats_new_last_seen_version: (value) =>
@@ -165,7 +163,6 @@ const settingUpdaters: {
   append_trailing_space: (value) =>
     commands.changeAppendTrailingSpaceSetting(value as boolean),
   log_level: (value) => commands.setLogLevel(value as any),
-  app_language: (value) => commands.changeAppLanguageSetting(value as string),
   theme: (value) => commands.changeThemeSetting(value as string),
   experimental_enabled: (value) =>
     commands.changeExperimentalEnabledSetting(value as boolean),

@@ -1149,9 +1149,9 @@ impl TranscriptionManager {
 
     pub fn transcribe(&self, audio: Vec<f32>) -> Result<String> {
         #[cfg(debug_assertions)]
-        if std::env::var("HANDY_FORCE_TRANSCRIPTION_FAILURE").is_ok() {
+        if std::env::var("KOTHA_FORCE_TRANSCRIPTION_FAILURE").is_ok() {
             return Err(anyhow::anyhow!(
-                "Simulated transcription failure (HANDY_FORCE_TRANSCRIPTION_FAILURE)"
+                "Simulated transcription failure (KOTHA_FORCE_TRANSCRIPTION_FAILURE)"
             ));
         }
 
@@ -1213,7 +1213,6 @@ impl TranscriptionManager {
         // run extension and the fuzzy-correction skip are gated on
         // `model_is_whisper` instead, since non-whisper archs can advertise
         // the feature while rejecting the whisper-kind extension.
-        let mut model_takes_initial_prompt = false;
         // Whether the loaded model is actually whisper-family (arch string).
         // Non-whisper archs (e.g. Voxtral Small) can advertise
         // Feature::InitialPrompt yet reject the whisper-kind run extension
@@ -1259,7 +1258,7 @@ impl TranscriptionManager {
             if let LoadedEngine::TranscribeCpp(session) = &engine {
                 let model = session.model();
                 let caps = model.capabilities();
-                model_takes_initial_prompt = model.supports(Feature::InitialPrompt);
+                let model_takes_initial_prompt = model.supports(Feature::InitialPrompt);
                 model_is_whisper = model.arch() == "whisper";
                 model_supports_translate = caps.supports_translate;
                 model_languages = caps.languages;
@@ -1648,7 +1647,7 @@ fn effective_language_for_model(
     }
 }
 
-/// Resolve how confidently Handy knows the language of the text produced by a
+/// Resolve how confidently Kotha knows the language of the text produced by a
 /// transcription run. The UI language is deliberately not part of this
 /// decision.
 fn resolve_output_language_evidence(
@@ -1663,7 +1662,7 @@ fn resolve_output_language_evidence(
 
     // Stored language intent is only evidence when this specific engine run
     // actually received the hint. Some multilingual engines (notably Parakeet
-    // V3) always auto-detect and ignore Handy's selection; transcribe-cpp also
+    // V3) always auto-detect and ignore Kotha's selection; transcribe-cpp also
     // drops a requested hint when the loaded model does not advertise it.
     if let Some(language) = applied_language_hint.filter(|lang| !lang.is_empty() && *lang != "auto")
     {
@@ -1937,7 +1936,7 @@ fn resolve_device_index(index: usize) -> Result<(Backend, i32)> {
     Ok((backend, gpu_device))
 }
 
-/// Map Handy's whisper accelerator setting to a transcribe-cpp [`Backend`].
+/// Map Kotha's whisper accelerator setting to a transcribe-cpp [`Backend`].
 ///
 /// `Auto` lets the library pick the best device (with CPU fallback). `Cpu` forces
 /// strict CPU. `Gpu` requests the platform GPU backend, but only if a device for
@@ -2197,7 +2196,6 @@ mod tests {
     #[test]
     fn portuguese_transcription_does_not_use_english_ui_filler_words() {
         let settings = AppSettings {
-            app_language: "en".to_string(),
             selected_language: "pt-BR".to_string(),
             ..Default::default()
         };

@@ -264,7 +264,7 @@ impl SoundTheme {
 }
 
 /// UI appearance mode. `System` follows the OS `prefers-color-scheme`; `Light`
-/// and `Dark` force one of the two palettes Handy already ships.
+/// and `Dark` force one of the two palettes Kotha ships.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum Theme {
@@ -375,8 +375,6 @@ pub struct AppSettings {
     pub start_hidden: bool,
     #[serde(default = "default_autostart_enabled")]
     pub autostart_enabled: bool,
-    #[serde(default = "default_update_checks_enabled")]
-    pub update_checks_enabled: bool,
     #[serde(default = "default_show_whats_new_on_update")]
     pub show_whats_new_on_update: bool,
     /// The app version whose What's New the user has already seen. Fresh installs
@@ -472,8 +470,6 @@ pub struct AppSettings {
     pub mute_while_recording: bool,
     #[serde(default)]
     pub append_trailing_space: bool,
-    #[serde(default = "default_app_language")]
-    pub app_language: String,
     #[serde(default = "default_theme")]
     pub theme: Theme,
     #[serde(default)]
@@ -546,10 +542,6 @@ fn default_start_hidden() -> bool {
 
 fn default_autostart_enabled() -> bool {
     false
-}
-
-fn default_update_checks_enabled() -> bool {
-    true
 }
 
 fn default_show_whats_new_on_update() -> bool {
@@ -680,12 +672,6 @@ fn default_bangla_romanization_models() -> HashMap<String, String> {
 
 fn default_bangla_romanization_timeout_seconds() -> u64 {
     45
-}
-
-fn default_app_language() -> String {
-    tauri_plugin_os::locale()
-        .map(|l| l.replace('_', "-"))
-        .unwrap_or_else(|| "en".to_string())
 }
 
 fn default_show_tray_icon() -> bool {
@@ -929,18 +915,6 @@ fn ensure_bangla_romanization_defaults(settings: &mut AppSettings) -> bool {
             changed = true;
         }
     }
-    // Migrate only Handy's retired Groq default. A user-entered model must
-    // never be overwritten merely because defaults changed.
-    if settings
-        .bangla_romanization_models
-        .get("groq")
-        .is_some_and(|model| model == "llama-3.3-70b-versatile")
-    {
-        settings
-            .bangla_romanization_models
-            .insert("groq".to_string(), "openai/gpt-oss-120b".to_string());
-        changed = true;
-    }
     if !matches!(
         settings.bangla_romanization_provider_id.as_str(),
         "groq" | "gemini" | "openai"
@@ -1038,7 +1012,6 @@ pub fn get_default_settings() -> AppSettings {
         sound_theme: default_sound_theme(),
         start_hidden: default_start_hidden(),
         autostart_enabled: default_autostart_enabled(),
-        update_checks_enabled: default_update_checks_enabled(),
         show_whats_new_on_update: default_show_whats_new_on_update(),
         whats_new_last_seen_version: default_whats_new_last_seen_version(),
         selected_model: "".to_string(),
@@ -1081,7 +1054,6 @@ pub fn get_default_settings() -> AppSettings {
         bangla_romanization_timeout_seconds: default_bangla_romanization_timeout_seconds(),
         mute_while_recording: false,
         append_trailing_space: false,
-        app_language: default_app_language(),
         theme: default_theme(),
         experimental_enabled: false,
         lazy_stream_close: false,
@@ -1411,17 +1383,7 @@ mod tests {
     }
 
     #[test]
-    fn retired_groq_default_migrates_without_overwriting_custom_models() {
-        let mut retired_default = get_default_settings();
-        retired_default
-            .bangla_romanization_models
-            .insert("groq".to_string(), "llama-3.3-70b-versatile".to_string());
-        assert!(ensure_bangla_romanization_defaults(&mut retired_default));
-        assert_eq!(
-            retired_default.bangla_romanization_models["groq"],
-            "openai/gpt-oss-120b"
-        );
-
+    fn romanization_defaults_do_not_overwrite_custom_models() {
         let mut custom_model = get_default_settings();
         custom_model
             .bangla_romanization_models
@@ -1529,7 +1491,6 @@ mod tests {
             "sound_theme": "pop",
             "start_hidden": false,
             "autostart_enabled": true,
-            "update_checks_enabled": true,
             "show_whats_new_on_update": true,
             "whats_new_last_seen_version": "0.9.0",
             "selected_model": "whisper-large-v3-turbo",
@@ -1543,7 +1504,7 @@ mod tests {
             "overlay_position": "bottom",
             "debug_mode": false,
             "log_level": 2,
-            "custom_words": ["Handy", "cjpais"],
+            "custom_words": ["Kotha", "RmnFs"],
             "model_unload_timeout": "min5",
             "word_correction_threshold": 0.18,
             "history_limit": 5,
@@ -1572,7 +1533,6 @@ mod tests {
             "post_process_selected_prompt_id": null,
             "mute_while_recording": false,
             "append_trailing_space": false,
-            "app_language": "en",
             "experimental_enabled": false,
             "lazy_stream_close": false,
             "keyboard_implementation": "handy_keys",
@@ -1635,14 +1595,14 @@ mod tests {
         let map = stored.as_object_mut().unwrap();
         map.insert("paste_delay_ms".into(), serde_json::json!("sixty"));
         map.insert("sound_theme".into(), serde_json::json!(42));
-        map.insert("custom_words".into(), serde_json::json!(["handy"]));
+        map.insert("custom_words".into(), serde_json::json!(["kotha"]));
 
         assert!(serde_json::from_value::<AppSettings>(stored.clone()).is_err());
 
         let salvaged = salvage_settings(&stored);
         assert_eq!(salvaged.paste_delay_ms, default_paste_delay_ms());
         assert_eq!(salvaged.sound_theme, default_sound_theme());
-        assert_eq!(salvaged.custom_words, vec!["handy".to_string()]);
+        assert_eq!(salvaged.custom_words, vec!["kotha".to_string()]);
     }
 
     #[test]

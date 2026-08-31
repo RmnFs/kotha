@@ -492,22 +492,6 @@ async changeFillerWordRemovalEnabledSetting(enabled: boolean) : Promise<Result<n
     else return { status: "error", error: e  as any };
 }
 },
-async changeAppLanguageSetting(language: string) : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("change_app_language_setting", { language }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async changeUpdateChecksSetting(enabled: boolean) : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("change_update_checks_setting", { enabled }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
 async changeShowWhatsNewOnUpdateSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_show_whats_new_on_update_setting", { enabled }) };
@@ -615,14 +599,6 @@ async getSecureInputStatus() : Promise<SecureInputStatus> {
 async runKeyboardDiagnostic(durationSecs: number | null) : Promise<Result<KeyboardDiagnosticReport, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("run_keyboard_diagnostic", { durationSecs }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async triggerUpdateCheck() : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("trigger_update_check") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1068,7 +1044,7 @@ settings_schema_version?: number;
  * Defaults to empty on partial stores; the load path merges in the
  * default bindings for any missing keys before the settings are used.
  */
-bindings?: Partial<{ [key in string]: ShortcutBinding }>; push_to_talk?: boolean; audio_feedback?: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; update_checks_enabled?: boolean; show_whats_new_on_update?: boolean; 
+bindings?: Partial<{ [key in string]: ShortcutBinding }>; push_to_talk?: boolean; audio_feedback?: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; show_whats_new_on_update?: boolean; 
 /**
  * The app version whose What's New the user has already seen. Fresh installs
  * default to the current version (nothing is "new" to them). Existing users
@@ -1091,7 +1067,7 @@ bangla_stt_provider_id?: string; bangla_stt_endpoint?: string; bangla_stt_api_ke
  * remains separate from both Deepgram STT and optional English polishing.
  * When disabled, a verified Deepgram transcript is pasted directly.
  */
-bangla_romanization_enabled?: boolean; bangla_romanization_provider_id?: string; bangla_romanization_api_keys?: SecretMap; bangla_romanization_models?: Partial<{ [key in string]: string }>; bangla_romanization_timeout_seconds?: number; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; theme?: Theme; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
+bangla_romanization_enabled?: boolean; bangla_romanization_provider_id?: string; bangla_romanization_api_keys?: SecretMap; bangla_romanization_models?: Partial<{ [key in string]: string }>; bangla_romanization_timeout_seconds?: number; mute_while_recording?: boolean; append_trailing_space?: boolean; theme?: Theme; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
 /**
  * Debug-gated ("beta") receipt-sequenced paste: restore the clipboard only
  * after the target app actually reads the transcript, instead of after a
@@ -1154,7 +1130,7 @@ export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type ModelInfo = { id: string; name: string; description: string; filename: string; source: ModelSource; size_mb: number; is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number; supports_translation: boolean; is_recommended: boolean; supported_languages: string[]; supports_language_selection: boolean; is_custom: boolean; supports_streaming: boolean; supports_language_detection: boolean }
 export type ModelLoadStatus = { is_loaded: boolean; current_model: string | null }
 /**
- * Where a model comes from and how Handy obtains it — the routing discriminant
+ * Where a model comes from and how Kotha obtains it — the routing discriminant
  * for downloading and on-disk resolution.
  */
 export type ModelSource = 
@@ -1261,7 +1237,7 @@ export type StreamTextEvent = { committed: string; tentative: string }
 export type StreamWorkKind = "transcribing" | "polishing"
 /**
  * UI appearance mode. `System` follows the OS `prefers-color-scheme`; `Light`
- * and `Dark` force one of the two palettes Handy already ships.
+ * and `Dark` force one of the two palettes Kotha ships.
  */
 export type Theme = "system" | "light" | "dark"
 export type TranscribeAcceleratorSetting = "auto" | "cpu" | "gpu"

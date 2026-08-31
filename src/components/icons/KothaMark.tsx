@@ -1,4 +1,4 @@
-const HandyHand = ({
+const KothaMark = ({
   width,
   height,
   className,
@@ -18,4 +18,4 @@ const HandyHand = ({
   />
 );
 
-export default HandyHand;
+export default KothaMark;

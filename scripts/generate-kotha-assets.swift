@@ -287,7 +287,6 @@ let mark = crop(
     labels: labels
 )
 let markImage = cgImage(pixels: mark.pixels, width: mark.width, height: mark.height)
-writePNG(markImage, to: publicBrandURL.appendingPathComponent("kotha-mark.png"))
 
 // A tighter crop around the K itself stays legible as a 24px navigation glyph.
 let symbolStartX = Int(Double(mark.width) * 0.48)
@@ -337,7 +336,6 @@ let appIcon = render(width: 1024, height: 1024) { value in
     value.draw(markImage, in: aspectFit(markImage, in: CGRect(x: 0, y: 0, width: 1024, height: 1024), inset: 68))
 }
 writePNG(appIcon, to: iconURL.appendingPathComponent("kotha-icon-master.png"))
-writePNG(appIcon, to: iconURL.appendingPathComponent("logo.png"))
 
 func tintedSymbol(color: CGColor, canvas: Int = 64, inset: CGFloat = 8) -> CGImage {
     render(width: canvas, height: canvas) { value in
@@ -401,15 +399,14 @@ let trayAssets: [(String, CGImage)] = [
     ("tray_recording_dark.png", trayAsset(color: darkGlyph, state: .recording, colored: false)),
     ("tray_transcribing_dark.png", trayAsset(color: darkGlyph, state: .transcribing, colored: false)),
     ("tray_idle_warning_dark.png", trayAsset(color: darkGlyph, state: .warning, colored: false)),
-    ("handy.png", trayAsset(color: nil, state: .idle, colored: true)),
+    ("kotha.png", trayAsset(color: nil, state: .idle, colored: true)),
     ("recording.png", trayAsset(color: nil, state: .recording, colored: true)),
     ("transcribing.png", trayAsset(color: nil, state: .transcribing, colored: true)),
-    ("handy_warning.png", trayAsset(color: nil, state: .warning, colored: true)),
 ]
 
 for (name, image) in trayAssets {
     writePNG(image, to: trayURL.appendingPathComponent(name))
 }
 
-print("Generated Kotha wordmark, mark, symbol, app-icon master, and tray states.")
+print("Generated Kotha wordmark, symbol, app-icon master, and tray states.")
 print("Primary mark component: \(primaryMark.count) px, \(primaryMark.bounds.width)x\(primaryMark.bounds.height)")

@@ -755,24 +755,6 @@ pub fn change_autostart_setting(app: AppHandle, enabled: bool) -> Result<(), Str
 
 #[tauri::command]
 #[specta::specta]
-pub fn change_update_checks_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    settings.update_checks_enabled = enabled;
-    settings::write_settings(&app, settings);
-
-    let _ = app.emit(
-        "settings-changed",
-        serde_json::json!({
-            "setting": "update_checks_enabled",
-            "value": enabled
-        }),
-    );
-
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub fn change_show_whats_new_on_update_setting(
     app: AppHandle,
     enabled: bool,
@@ -1447,19 +1429,6 @@ pub fn change_filler_word_removal_enabled_setting(
     let mut settings = settings::get_settings(&app);
     settings.filler_word_removal_enabled = enabled;
     settings::write_settings(&app, settings);
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn change_app_language_setting(app: AppHandle, language: String) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    settings.app_language = language.clone();
-    settings::write_settings(&app, settings);
-
-    // Refresh the tray menu with the new language
-    tray::update_tray_menu(&app, Some(&language));
-
     Ok(())
 }
 

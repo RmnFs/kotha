@@ -9,8 +9,8 @@ import {
   Cpu,
   Languages,
 } from "lucide-react";
-import HandyTextLogo from "./icons/HandyTextLogo";
-import HandyHand from "./icons/HandyHand";
+import KothaWordmark from "./icons/KothaWordmark";
+import KothaMark from "./icons/KothaMark";
 import { useSettings } from "../hooks/useSettings";
 import {
   GeneralSettings,
@@ -43,7 +43,7 @@ interface SectionConfig {
 export const SECTIONS_CONFIG = {
   general: {
     labelKey: "sidebar.general",
-    icon: HandyHand,
+    icon: KothaMark,
     component: GeneralSettings,
     enabled: () => true,
   },
@@ -110,7 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className="flex flex-col w-44 h-full border-e border-border bg-surface items-center px-3">
       <div className="flex min-h-20 w-full items-center justify-center border-b border-border/80 px-2">
-        <HandyTextLogo width={126} />
+        <KothaWordmark width={126} />
       </div>
       <nav className="flex flex-col w-full items-center gap-1.5 pt-3">
         {availableSections.map((section) => {

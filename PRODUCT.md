@@ -4,7 +4,7 @@
 
 ## Platform
 
-web
+Cross-platform desktop: macOS, Windows, and Linux.
 
 ## Users
 
@@ -25,10 +25,10 @@ Kotha runs primarily from the system tray. Users configure shortcuts, microphone
 ## Capabilities and Constraints
 
 - Preserve the Tauri 2 Rust backend, React and TypeScript frontend, generated bindings, command-event architecture, and Zustand settings flow.
-- Preserve all recording, transcription, Bangla, Romanization, cancellation, fallback, privacy, and paste behavior documented in `HANDY_CODEBASE_MAP.md`.
-- All user-facing strings use i18next resources.
-- Light, dark, RTL, keyboard, and cross-platform behavior must remain supported.
-- The first visual rebrand does not migrate the bundle identifier, application data path, updater endpoint, signing configuration, internal shortcut IDs, settings keys, or backend contracts.
+- Preserve all recording, transcription, Bangla, Romanization, cancellation, fallback, privacy, and paste behavior documented in `KOTHA_CODEBASE_MAP.md`.
+- All user-facing strings use the English i18next resource.
+- Light, dark, keyboard, and cross-platform behavior must remain supported.
+- Kotha's application identifier is `rmn.kotha`; automatic updates remain disabled until Kotha owns an updater signing key.
 
 ## Brand Commitments
 
@@ -41,8 +41,8 @@ Kotha runs primarily from the system tray. Users configure shortcuts, microphone
 ## Evidence on Hand
 
 - Approved Kotha wordmark: `/Users/rmn/Developer/Romanize/Kotha.jpeg`.
-- Implemented product and Bangla architecture: `HANDY_CODEBASE_MAP.md`.
-- Existing UI, icon components, app icon set, tray states, overlay, translations, and theme tokens in this repository.
+- Implemented product and Bangla architecture: `KOTHA_CODEBASE_MAP.md`.
+- Existing UI, icon components, desktop app icon set, tray states, overlay, English copy, and theme tokens in this repository.
 - No original vector artwork is available in the workspace; derived vector and small-size assets must therefore be validated against the supplied JPEG.
 
 ## Product Principles
@@ -55,4 +55,4 @@ Kotha runs primarily from the system tray. Users configure shortcuts, microphone
 
 ## Accessibility & Inclusion
 
-Maintain keyboard access, visible focus, readable contrast, light and dark themes, RTL direction, localized copy, and layouts that tolerate longer translations.
+Maintain keyboard access, visible focus, readable contrast, light and dark themes, and clear English operational copy.

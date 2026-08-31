@@ -1,7 +1,6 @@
 {
   "tray": {
     "settings": "Settings...",
-    "checkUpdates": "Check for Updates...",
     "copyLastTranscript": "Copy Last Transcript",
     "unloadModel": "Unload Model",
     "model": "Model",
@@ -476,10 +475,6 @@
         "lineCount": "{{count}} lines",
         "empty": "Waiting for logs… Entries appear here as the app emits them."
       },
-      "updateChecks": {
-        "label": "Check for Updates",
-        "description": "Automatically check for new versions of Kotha"
-      },
       "whatsNewPreview": {
         "title": "Preview What's New",
         "description": "Open the latest bundled release note without marking it as seen",
@@ -593,16 +588,16 @@
       },
       "sourceCode": {
         "title": "Source Code",
-        "description": "View source code and contribute",
+        "description": "View the Kotha source code",
         "button": "View on GitHub"
-      },
-      "supportDevelopment": {
-        "title": "Support Development",
-        "description": "Help us continue building Kotha",
-        "button": "Donate"
       },
       "acknowledgments": {
         "title": "Acknowledgments",
+        "handy": {
+          "title": "Based on Handy",
+          "description": "Kotha is derived from the open-source Handy speech-to-text application by CJ Pais and its contributors.",
+          "button": "View Handy"
+        },
         "ggml": {
           "title": "ggml",
           "description": "High-performance tensor library for on-device machine learning inference",
@@ -824,10 +819,6 @@
     "pasteFailedTitle": "Failed to Paste Text",
     "pasteFailed": "Text could not be pasted into the active application.",
     "transcriptionFailedTitle": "Transcription Failed"
-  },
-  "appLanguage": {
-    "title": "Application Language",
-    "description": "Change the language of the Kotha interface"
   },
   "theme": {
     "title": "Application Theme",

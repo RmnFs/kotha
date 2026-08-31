@@ -46,7 +46,7 @@ use tauri::image::Image;
 pub use transcription_coordinator::TranscriptionCoordinator;
 
 use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Emitter, Listener, Manager};
+use tauri::{AppHandle, Listener, Manager};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{Builder as LogBuilder, RotationStrategy, Target, TargetKind};
 
@@ -270,13 +270,6 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                 // Full explanation lives in the settings-window banner
                 show_main_window(app);
             }
-            "check_updates" => {
-                let settings = settings::get_settings(app);
-                if settings.update_checks_enabled {
-                    show_main_window(app);
-                    let _ = app.emit("check-for-updates", ());
-                }
-            }
             "copy_last_transcript" => {
                 tray::copy_last_transcript(app);
             }
@@ -316,7 +309,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                             log::error!("Failed to switch model via tray: {}", e);
                         }
                     }
-                    tray::update_tray_menu(&app_clone, None);
+                    tray::update_tray_menu(&app_clone);
                 });
             }
             _ => {}
@@ -326,7 +319,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(tray);
 
     // Initialize tray menu with idle state
-    utils::update_tray_menu(app_handle, None);
+    utils::update_tray_menu(app_handle);
 
     // Apply show_tray_icon setting
     let settings = settings::get_settings(app_handle);
@@ -337,7 +330,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // Refresh tray menu when model state changes
     let app_handle_for_listener = app_handle.clone();
     app_handle.listen("model-state-changed", move |_| {
-        tray::update_tray_menu(&app_handle_for_listener, None);
+        tray::update_tray_menu(&app_handle_for_listener);
     });
 
     // Apply the autostart preference (SMAppService login item on macOS 13+,
@@ -346,18 +339,6 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
-}
-
-#[tauri::command]
-#[specta::specta]
-fn trigger_update_check(app: AppHandle) -> Result<(), String> {
-    let settings = settings::get_settings(&app);
-    if !settings.update_checks_enabled {
-        return Ok(());
-    }
-    app.emit("check-for-updates", ())
-        .map_err(|e| e.to_string())?;
-    Ok(())
 }
 
 #[tauri::command]
@@ -670,8 +651,6 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_lazy_stream_close_setting,
             shortcut::change_vad_enabled_setting,
             shortcut::change_filler_word_removal_enabled_setting,
-            shortcut::change_app_language_setting,
-            shortcut::change_update_checks_setting,
             shortcut::change_show_whats_new_on_update_setting,
             shortcut::change_whats_new_last_seen_version_setting,
             shortcut::change_keyboard_implementation_setting,
@@ -685,7 +664,6 @@ pub fn run(cli_args: CliArgs) {
             shortcut::handy_keys::stop_handy_keys_recording,
             secure_input::get_secure_input_status,
             secure_input::run_keyboard_diagnostic,
-            trigger_update_check,
             show_main_window_command,
             commands::cancel_operation,
             commands::is_portable,
@@ -789,11 +767,11 @@ pub fn run(cli_args: CliArgs) {
                     Target::new(if let Some(data_dir) = portable::data_dir() {
                         TargetKind::Folder {
                             path: data_dir.join("logs"),
-                            file_name: Some("handy".into()),
+                            file_name: Some("kotha".into()),
                         }
                     } else {
                         TargetKind::LogDir {
-                            file_name: Some("handy".into()),
+                            file_name: Some("kotha".into()),
                         }
                     })
                     .filter(|metadata| {
@@ -818,7 +796,7 @@ pub fn run(cli_args: CliArgs) {
         builder = builder.plugin(tauri_nspanel::init());
     }
 
-    // Single-instance forwards CLI args to an already-running Handy and exits.
+    // Single-instance forwards CLI args to an already-running Kotha and exits.
     // That would make the headless path
     // (--transcribe-file/--list-devices/--list-models) a silent no-op whenever the
     // app is already open, so skip it in headless mode and run a standalone
@@ -839,8 +817,6 @@ pub fn run(cli_args: CliArgs) {
 
     builder
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_macos_permissions::init())

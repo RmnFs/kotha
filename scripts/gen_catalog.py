@@ -3,7 +3,7 @@
 # dependencies = ["huggingface_hub", "fsspec"]
 # ///
 """
-Handy model catalog generator.
+Kotha model catalog generator.
 
 Merges three sources into one catalog.json:
   1. HF card `transcribe_cpp` block  -> capabilities + benchmarks (canonical)
@@ -36,7 +36,7 @@ def speed_from_rtf(rtf):
 def acc_from_wer(wer):
     return None if wer is None else round(100 * math.exp(-wer / ACC_SCALE))
 
-# ───────────────────────── curation (CJ owns; editorial, not derivable) ──────
+# ───────────────── inherited curation (editorial, not derivable) ─────────────
 # slug -> {rank?, rec?, desc?, use_case?, default_quant?, hidden?}.  All optional.
 # desc is hand-written UI copy; models without one use factual generated summaries.
 # rank = editorial sort position (broad ordering). rec = the small "Recommended"

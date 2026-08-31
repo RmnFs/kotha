@@ -105,7 +105,7 @@ pub fn get_icon_path(theme: AppTheme, state: TrayIconState, warning: bool) -> &'
             AppTheme::Light => "resources/tray_idle_warning_dark.png",
             // Linux never sets the warning flag (Secure Input is macOS-only),
             // but fall back to the normal icon just in case.
-            AppTheme::Colored => "resources/handy.png",
+            AppTheme::Colored => "resources/kotha.png",
         };
     }
     match (theme, state) {
@@ -118,7 +118,7 @@ pub fn get_icon_path(theme: AppTheme, state: TrayIconState, warning: bool) -> &'
         (AppTheme::Light, TrayIconState::Recording) => "resources/tray_recording_dark.png",
         (AppTheme::Light, TrayIconState::Transcribing) => "resources/tray_transcribing_dark.png",
         // Colored theme uses pink icons (for Linux)
-        (AppTheme::Colored, TrayIconState::Idle) => "resources/handy.png",
+        (AppTheme::Colored, TrayIconState::Idle) => "resources/kotha.png",
         (AppTheme::Colored, TrayIconState::Recording) => "resources/recording.png",
         (AppTheme::Colored, TrayIconState::Transcribing) => "resources/transcribing.png",
     }
@@ -147,7 +147,7 @@ pub fn change_tray_icon(app: &AppHandle, icon: TrayIconState) {
 
     // Update menu based on state
     let menu_started = std::time::Instant::now();
-    update_tray_menu(app, None);
+    update_tray_menu(app);
     debug!(
         "tray icon change ({:?}): icon={} set_icon={:?} menu={:?}",
         icon,
@@ -181,12 +181,10 @@ fn version_label() -> String {
     }
 }
 
-pub fn update_tray_menu(app: &AppHandle, locale: Option<&str>) {
+pub fn update_tray_menu(app: &AppHandle) {
     let state = app.state::<CurrentTrayIconState>().get();
     let settings = settings::get_settings(app);
-
-    let locale = locale.unwrap_or(&settings.app_language);
-    let strings = get_tray_translations(Some(locale.to_string()));
+    let strings = get_tray_translations();
 
     // Secure Input warning entry (macOS): clicking opens the settings window
     // where the full warning banner explains the situation. Locales that
@@ -194,7 +192,7 @@ pub fn update_tray_menu(app: &AppHandle, locale: Option<&str>) {
     // blank menu item (build.rs emits "" for missing keys).
     let secure_input_warning = crate::secure_input::tray_warning_active(app).then(|| {
         let label = if strings.secure_input_warning.is_empty() {
-            get_tray_translations(Some("en".to_string())).secure_input_warning
+            get_tray_translations().secure_input_warning
         } else {
             strings.secure_input_warning.clone()
         };
@@ -220,14 +218,6 @@ pub fn update_tray_menu(app: &AppHandle, locale: Option<&str>) {
         settings_accelerator,
     )
     .expect("failed to create settings item");
-    let check_updates_i = MenuItem::with_id(
-        app,
-        "check_updates",
-        &strings.check_updates,
-        settings.update_checks_enabled,
-        None::<&str>,
-    )
-    .expect("failed to create check updates item");
     let copy_last_transcript_i = MenuItem::with_id(
         app,
         "copy_last_transcript",
@@ -294,7 +284,6 @@ pub fn update_tray_menu(app: &AppHandle, locale: Option<&str>) {
                     &copy_last_transcript_i,
                     &separator(),
                     &settings_i,
-                    &check_updates_i,
                     &separator(),
                     &quit_i,
                 ],
@@ -312,7 +301,6 @@ pub fn update_tray_menu(app: &AppHandle, locale: Option<&str>) {
                 &unload_model_i,
                 &separator(),
                 &settings_i,
-                &check_updates_i,
                 &separator(),
                 &quit_i,
             ],
@@ -390,7 +378,7 @@ mod tests {
     fn build_entry(transcription: &str, post_processed: Option<&str>) -> HistoryEntry {
         HistoryEntry {
             id: 1,
-            file_name: "handy-1.wav".to_string(),
+            file_name: "kotha-1.wav".to_string(),
             timestamp: 0,
             saved: false,
             title: "Recording".to_string(),

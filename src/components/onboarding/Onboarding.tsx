@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import type { ModelInfo } from "@/bindings";
 import type { ModelCardStatus } from "./ModelCard";
 import ModelCard, { isLegacySource } from "./ModelCard";
-import HandyTextLogo from "../icons/HandyTextLogo";
+import KothaWordmark from "../icons/KothaWordmark";
 import { useModelStore } from "../../stores/modelStore";
 
 interface OnboardingProps {
@@ -146,7 +146,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
   return (
     <div className="h-screen w-screen flex flex-col px-6 py-7 gap-5 inset-0 bg-background">
       <div className="flex flex-col items-center gap-3 shrink-0">
-        <HandyTextLogo width={224} />
+        <KothaWordmark width={224} />
         <p className="text-mid-gray max-w-md font-medium mx-auto text-center">
           {t("onboarding.subtitle")}
         </p>
